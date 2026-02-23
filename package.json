@@ -1,0 +1,12 @@
+{
+  "name": "cs3110-web-server",
+  "version": "1.0.0",
+  "description": "Simple static file web server",
+  "main": "test.js",
+  "scripts": {
+    "start": "node test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
