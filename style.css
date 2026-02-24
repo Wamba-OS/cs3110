@@ -1,48 +1,699 @@
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ==========================================================
+   THE VAULT OF TARNISHED SIGILS
+   Diablo II inspired theme for MTG Card Catalogue
+   ========================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+/* ---- CSS Variables ---- */
+:root {
+  --bg:            #060402;
+  --bg-mid:        #0e0905;
+  --panel:         #17110a;
+  --panel-raised:  #201709;
+
+  --gold-bright:   #f0c848;
+  --gold-mid:      #c8922a;
+  --gold-dark:     #8b6318;
+  --gold-dim:      #4a3010;
+
+  --text-title:    #f5d060;
+  --text-gold:     #c8922a;
+  --text-parch:    #d0b878;
+  --text-body:     #a89060;
+  --text-dim:      #5a4828;
+
+  --rarity-c:  #b8b8b8;
+  --rarity-u:  #a8c8d8;
+  --rarity-r:  #f5d060;
+  --rarity-m:  #f08020;
+
+  /* Mana colour: text, bg */
+  --mw-t: #48401a; --mw-b: #d8c070;
+  --mu-t: #a8d0f8; --mu-b: #1050a0;
+  --mb-t: #d0a0e8; --mb-b: #260e38;
+  --mr-t: #f8b8a8; --mr-b: #a01808;
+  --mg-t: #a0e0a0; --mg-b: #086028;
+  --mc-t: #d8d8e0; --mc-b: #3a3a50;
 }
+
+/* ---- Reset ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ---- Custom scrollbar ---- */
+::-webkit-scrollbar       { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold-dark); }
+
+/* ---- Base ---- */
+html, body { height: 100%; }
 
 body {
-  font-family: Arial, sans-serif;
-  background-color: #f4f4f4;
-  color: #333;
-  padding: 20px;
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 16px;
+  color: var(--text-body);
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 90% 50% at 50% 0%,   #1e0f05 0%, transparent 65%),
+    radial-gradient(ellipse 70% 40% at 50% 100%,  #130a03 0%, transparent 55%);
+  min-height: 100vh;
 }
 
-nav {
-  background-color: #333;
-  padding: 10px 20px;
-  margin-bottom: 30px;
+/* ================================================================
+   HEADER
+   ================================================================ */
+.d2-header {
+  background: linear-gradient(to bottom, #28100400, #13090200);
+  border-bottom: 1px solid var(--gold-dim);
+  padding: 16px 24px 0;
+  position: relative;
+}
+.d2-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 8%; right: 8%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold-mid), transparent);
+}
+
+.header-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-title {
+  font-family: 'Cinzel Decorative', 'Times New Roman', serif;
+  font-size: clamp(1.3rem, 3vw, 2.1rem);
+  color: var(--gold-bright);
+  text-shadow:
+    0 0 18px rgba(240,200,72,0.45),
+    0 0 40px rgba(200,100,20,0.3),
+    2px 2px 6px rgba(0,0,0,0.9);
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+/* ---- Top navigation ---- */
+.d2-nav { display: flex; gap: 2px; }
+
+.nav-link {
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-body);
+  text-decoration: none;
+  padding: 6px 22px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  position: relative;
+  bottom: -1px;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+.nav-link:hover,
+.nav-link.active {
+  color: var(--text-gold);
+  background: var(--panel);
+  border-color: var(--gold-dim);
+  border-bottom-color: var(--panel);
+}
+
+/* ================================================================
+   MAIN 3-COLUMN LAYOUT
+   ================================================================ */
+.d2-main {
+  display: grid;
+  grid-template-columns: 220px 1fr 180px;
+  gap: 12px;
+  padding: 14px 16px 20px;
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ================================================================
+   D2 PANEL  (reusable — filter, stats, tooltip)
+   ================================================================ */
+.d2-panel {
+  background: var(--panel);
+  border: 1px solid var(--gold-dark);
+  box-shadow:
+    0 0 0 3px var(--bg-mid),
+    0 0 0 4px var(--gold-dim),
+    0 4px 24px rgba(0,0,0,0.75),
+    inset 0 1px 0 rgba(255,255,255,0.025);
+  position: relative;
+  overflow: visible;
+}
+
+/* Corner diamond ornaments (added via .d2-corners) */
+.d2-corners {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.d2-corners i {
+  display: block;
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--gold-mid);
+  transform: rotate(45deg);
+}
+.d2-corners i:nth-child(1) { top:    -4px; left:  -4px; }
+.d2-corners i:nth-child(2) { top:    -4px; right: -4px; }
+.d2-corners i:nth-child(3) { bottom: -4px; left:  -4px; }
+.d2-corners i:nth-child(4) { bottom: -4px; right: -4px; }
+
+/* Panel header bar */
+.panel-header {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--gold-dim);
+  background: linear-gradient(to bottom, var(--panel-raised), var(--panel));
+  position: relative;
+}
+.panel-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold-dark), transparent);
+}
+.panel-title {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-gold);
+}
+
+.panel-body { padding: 10px 10px 12px; }
+
+/* ================================================================
+   FILTER PANEL
+   ================================================================ */
+.filter-panel { display: flex; flex-direction: column; }
+
+.filter-section { margin-bottom: 13px; }
+
+.filter-label {
+  display: block;
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--gold-dim);
+}
+
+/* Mana colour toggles */
+.mana-filter-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.mana-toggle { cursor: pointer; }
+.mana-toggle input { display: none; }
+
+.mana-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border: 2px solid rgba(0,0,0,0.6);
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+  user-select: none;
+}
+.mana-toggle input:checked + .mana-symbol {
+  opacity: 1;
+  transform: scale(1.12);
+}
+
+/* Individual mana colours */
+.sym-w { background: var(--mw-b); color: var(--mw-t); }
+.sym-u { background: var(--mu-b); color: var(--mu-t); }
+.sym-b { background: var(--mb-b); color: var(--mb-t); border-color: #7050a0; }
+.sym-r { background: var(--mr-b); color: var(--mr-t); }
+.sym-g { background: var(--mg-b); color: var(--mg-t); }
+.sym-c { background: var(--mc-b); color: var(--mc-t); }
+
+.mana-toggle input:checked + .sym-w { box-shadow: 0 0 8px rgba(216,192,112,0.8); }
+.mana-toggle input:checked + .sym-u { box-shadow: 0 0 8px rgba(80,144,200,0.8); }
+.mana-toggle input:checked + .sym-b { box-shadow: 0 0 8px rgba(180,120,240,0.7); }
+.mana-toggle input:checked + .sym-r { box-shadow: 0 0 8px rgba(200,60,30,0.8);  }
+.mana-toggle input:checked + .sym-g { box-shadow: 0 0 8px rgba(60,180,80,0.8);  }
+.mana-toggle input:checked + .sym-c { box-shadow: 0 0 8px rgba(160,160,200,0.7); }
+
+/* Type toggle buttons */
+.type-filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+
+.type-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 3px;
+  border: 1px solid var(--gold-dim);
+  background: var(--bg-mid);
+  font-family: 'Cinzel', serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.1s;
+  user-select: none;
+}
+.type-toggle input { display: none; }
+.type-toggle:hover { border-color: var(--gold-dark); color: var(--text-body); }
+.type-toggle:has(input:checked) {
+  border-color: var(--gold-mid);
+  background: var(--panel-raised);
+  color: var(--text-gold);
+  box-shadow: 0 0 6px rgba(200,146,42,0.3), inset 0 0 4px rgba(200,146,42,0.1);
+}
+
+/* Inputs & select */
+.d2-input {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--bg-mid);
+  border: 1px solid var(--gold-dim);
+  color: var(--text-parch);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.d2-input::placeholder { color: var(--text-dim); font-style: italic; }
+.d2-input:focus { border-color: var(--gold-dark); box-shadow: 0 0 6px rgba(200,146,42,0.2); }
+
+.d2-select {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--bg-mid);
+  border: 1px solid var(--gold-dim);
+  color: var(--text-parch);
+  font-family: 'Cinzel', serif;
+  font-size: 0.68rem;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+}
+.d2-select option { background: var(--panel); }
+
+/* D2 Buttons */
+.d2-button {
+  width: 100%;
+  padding: 8px 12px;
+  margin-top: 7px;
+  background: linear-gradient(to bottom, #321c08, #1c0e04);
+  border: 1px solid var(--gold-dark);
+  color: var(--text-gold);
+  font-family: 'Cinzel', serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.1s;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.d2-button:hover {
+  background: linear-gradient(to bottom, #422810, #2a1408);
+  border-color: var(--gold-mid);
+  color: var(--text-title);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 10px rgba(200,146,42,0.25);
+}
+.d2-button:active {
+  background: linear-gradient(to bottom, #1c0e04, #321c08);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.6);
+}
+
+/* Arcane (purple) button variant */
+.d2-button-arcane {
+  background: linear-gradient(to bottom, #1e0a28, #100514);
+  border-color: #502870;
+  color: #b880e8;
+}
+.d2-button-arcane:hover {
+  background: linear-gradient(to bottom, #2e1040, #1a081e);
+  border-color: #8040c0;
+  color: #d0a0f8;
+  box-shadow: 0 0 10px rgba(160,80,240,0.28);
+}
+
+/* ================================================================
+   CENTER: INVENTORY (card grid)
+   ================================================================ */
+.d2-inventory {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.inventory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 8px;
+  border-bottom: 1px solid var(--gold-dim);
+  margin-bottom: 10px;
+}
+
+.result-count {
+  font-family: 'Cinzel', serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* Pagination */
+.pagination { display: flex; align-items: center; gap: 8px; }
+
+.d2-page-btn {
+  padding: 4px 10px;
+  background: var(--panel);
+  border: 1px solid var(--gold-dim);
+  color: var(--text-gold);
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.d2-page-btn:hover {
+  border-color: var(--gold-mid);
+  color: var(--text-title);
+  box-shadow: 0 0 6px rgba(200,146,42,0.2);
+}
+.page-indicator {
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  color: var(--text-dim);
+}
+
+/* Card grid */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  padding: 4px;
+  flex: 1;
+  align-content: start;
+}
+
+/* Individual card item */
+.card-item {
+  aspect-ratio: 63 / 88;
+  cursor: pointer;
+  position: relative;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid #1c1408;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s;
+}
+.card-item img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
   border-radius: 4px;
 }
 
-nav a {
-  color: #fff;
-  text-decoration: none;
-  margin-right: 20px;
-  font-size: 1rem;
+/* Card name overlay — reveals on hover */
+.card-name-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 14px 4px 3px;
+  background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 100%);
+  font-family: 'Cinzel', serif;
+  font-size: 0.52rem;
+  color: #f0e8d0;
+  opacity: 0;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.card-item:hover .card-name-overlay { opacity: 1; }
+
+/* Hover lift + rarity glow */
+.card-item:hover { transform: scale(1.07) translateY(-3px); z-index: 5; }
+
+.card-item.rarity-common:hover   { box-shadow: 0 6px 14px rgba(180,180,180,0.4), 0 0 5px rgba(180,180,180,0.3); border-color: var(--rarity-c); }
+.card-item.rarity-uncommon:hover { box-shadow: 0 6px 16px rgba(168,200,216,0.5), 0 0 8px rgba(168,200,216,0.4); border-color: var(--rarity-u); }
+.card-item.rarity-rare:hover     { box-shadow: 0 6px 20px rgba(245,208,96,0.65), 0 0 10px rgba(245,208,96,0.5); border-color: var(--rarity-r); }
+.card-item.rarity-mythic:hover   { box-shadow: 0 6px 24px rgba(240,120,32,0.75), 0 0 14px rgba(240,120,32,0.6); border-color: var(--rarity-m); }
+
+/* Rarity gem indicator dot (top-right corner) */
+.card-item::after {
+  content: '';
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  opacity: 0.85;
+}
+.card-item.rarity-common::after   { background: var(--rarity-c); }
+.card-item.rarity-uncommon::after { background: var(--rarity-u); box-shadow: 0 0 4px var(--rarity-u); }
+.card-item.rarity-rare::after     { background: var(--rarity-r); box-shadow: 0 0 6px var(--rarity-r); }
+.card-item.rarity-mythic::after   { background: var(--rarity-m); box-shadow: 0 0 8px var(--rarity-m); animation: mythicPulse 2s ease-in-out infinite; }
+
+@keyframes mythicPulse {
+  0%, 100% { box-shadow: 0 0 6px var(--rarity-m); }
+  50%       { box-shadow: 0 0 14px var(--rarity-m), 0 0 20px rgba(240,120,32,0.4); }
 }
 
-nav a:hover {
-  text-decoration: underline;
+/* ================================================================
+   RIGHT: STATS PANEL
+   ================================================================ */
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 3px 0;
+}
+.stat-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.stat-value {
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-gold);
+}
+.stat-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold-dim), transparent);
+  margin: 6px 0;
 }
 
-h1 {
-  margin-bottom: 15px;
-  color: #222;
+/* Colour stat label tints */
+.stat-col-w { color: #c8b850; }
+.stat-col-u { color: #5090d0; }
+.stat-col-b { color: #a070c0; }
+.stat-col-r { color: #d04030; }
+.stat-col-g { color: #38a048; }
+
+/* Rarity stat label colours */
+.rarity-common   { color: var(--rarity-c); }
+.rarity-uncommon { color: var(--rarity-u); }
+.rarity-rare     { color: var(--rarity-r); }
+.rarity-mythic   { color: var(--rarity-m); }
+
+/* ================================================================
+   LOADING STATE
+   ================================================================ */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 20px;
+  grid-column: 1 / -1;
+  color: var(--text-dim);
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.loading-state.hidden { display: none; }
+
+.loading-orb {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--gold-dim);
+  border-top-color: var(--gold-mid);
+  animation: orbSpin 1.1s linear infinite;
+  box-shadow: 0 0 12px rgba(200,146,42,0.35), inset 0 0 12px rgba(200,100,20,0.2);
+}
+@keyframes orbSpin { to { transform: rotate(360deg); } }
+
+/* ================================================================
+   EMPTY / ERROR STATES
+   ================================================================ */
+.empty-state,
+.error-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 70px 20px;
+}
+.empty-title {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 1.25rem;
+  color: var(--text-gold);
+  margin-bottom: 14px;
+  text-shadow: 0 0 12px rgba(200,146,42,0.3);
+}
+.empty-text {
+  font-family: 'Crimson Text', serif;
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+.error-state .empty-title {
+  color: #c04040;
+  text-shadow: 0 0 12px rgba(200,40,40,0.35);
 }
 
-p {
-  margin-bottom: 15px;
-  line-height: 1.6;
+/* ================================================================
+   CARD TOOLTIP  (D2 item description panel)
+   ================================================================ */
+.card-tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  width: 288px;
+}
+.card-tooltip.hidden { display: none; }
+
+.tooltip-inner {
+  background: linear-gradient(160deg, #201608, #130c05);
+  border: 1px solid var(--gold-dark);
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 4px var(--gold-dim),
+    0 10px 36px rgba(0,0,0,0.95);
+  padding: 12px 14px 10px;
+  position: relative;
 }
 
-img {
-  max-width: 300px;
-  display: block;
-  margin: 20px 0;
-  border: 2px solid #ccc;
-  border-radius: 6px;
+.tooltip-name {
+  font-family: 'Cinzel', serif;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 5px;
 }
+.tooltip-name.rarity-common   { color: var(--rarity-c); }
+.tooltip-name.rarity-uncommon { color: var(--rarity-u); }
+.tooltip-name.rarity-rare     { color: var(--rarity-r); }
+.tooltip-name.rarity-mythic   { color: var(--rarity-m); }
+
+.tooltip-mana {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 6px;
+  min-height: 18px;
+}
+
+.tooltip-type {
+  font-family: 'Cinzel', serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--text-body);
+  margin-bottom: 2px;
+}
+
+.tooltip-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold-dim), transparent);
+  margin: 6px 0;
+}
+
+.tooltip-text {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  color: var(--text-parch);
+  line-height: 1.45;
+  margin-bottom: 4px;
+}
+.tooltip-flavor {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-dim);
+  line-height: 1.35;
+  margin-top: 4px;
+}
+.tooltip-pt {
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-gold);
+  text-align: right;
+  margin-top: 4px;
+}
+.tooltip-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--text-dim);
+  margin-top: 2px;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+/* ================================================================
+   MANA PIPS  (in tooltip oracle text + mana cost line)
+   ================================================================ */
+.mana-pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  font-family: 'Cinzel', serif;
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+  border: 1px solid rgba(0,0,0,0.5);
+  margin: 0 1px;
+}
+
+.mana-pip.mana-w { background: var(--mw-b); color: var(--mw-t); }
+.mana-pip.mana-u { background: var(--mu-b); color: var(--mu-t); }
+.mana-pip.mana-b { background: var(--mb-b); color: var(--mb-t); }
+.mana-pip.mana-r { background: var(--mr-b); color: var(--mr-t); }
+.mana-pip.mana-g { background: var(--mg-b); color: var(--mg-t); }
+.mana-pip.mana-c { background: var(--mc-b); color: var(--mc-t); }
+
+/* Tap, generic numeric, hybrid, special */
+.mana-pip.mana-t       { background: #2a1e14; color: #c09060; }
+.mana-pip.mana-q       { background: #1a1a2a; color: #9090c0; }
+.mana-pip.mana-colorless,
+.mana-pip.mana-x,
+.mana-pip.mana-y,
+.mana-pip.mana-z { background: #302818; color: var(--text-parch); }
+
+/* Numbers get the generic look via JS (class "mana-colorless") */

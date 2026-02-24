@@ -3,16 +3,222 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Home</title>
+  <title>The Vault of Tarnished Sigils</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <nav>
-    <a href="/index.html">Home</a>
-    <a href="/test.html">About</a>
-  </nav>
-  <h1>Welcome</h1>
-  <p>This is the home page served by my Node.js web server.</p>
-  <img src="/logo.svg" alt="Site logo" />
+  <div class="d2-frame">
+
+    <!-- ===== HEADER ===== -->
+    <header class="d2-header">
+      <div class="header-inner">
+        <h1 class="site-title">The Vault of Tarnished Sigils</h1>
+        <nav class="d2-nav">
+          <a href="/index.html" class="nav-link active">Collection</a>
+          <a href="/test.html" class="nav-link">About</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- ===== MAIN 3-COLUMN LAYOUT ===== -->
+    <div class="d2-main">
+
+      <!-- LEFT: Filter Panel -->
+      <aside class="d2-panel filter-panel">
+        <div class="d2-corners"><i></i><i></i><i></i><i></i></div>
+        <div class="panel-header">
+          <span class="panel-title">Arcane Filter</span>
+        </div>
+        <div class="panel-body">
+
+          <div class="filter-section">
+            <label class="filter-label">Search</label>
+            <input type="text" id="search-input" class="d2-input" placeholder="Lightning Bolt..." />
+          </div>
+
+          <div class="filter-section">
+            <label class="filter-label">Mana Color</label>
+            <div class="mana-filter-row">
+              <label class="mana-toggle" title="White">
+                <input type="checkbox" value="w" class="color-filter" />
+                <span class="mana-symbol sym-w">W</span>
+              </label>
+              <label class="mana-toggle" title="Blue">
+                <input type="checkbox" value="u" class="color-filter" />
+                <span class="mana-symbol sym-u">U</span>
+              </label>
+              <label class="mana-toggle" title="Black">
+                <input type="checkbox" value="b" class="color-filter" />
+                <span class="mana-symbol sym-b">B</span>
+              </label>
+              <label class="mana-toggle" title="Red">
+                <input type="checkbox" value="r" class="color-filter" />
+                <span class="mana-symbol sym-r">R</span>
+              </label>
+              <label class="mana-toggle" title="Green">
+                <input type="checkbox" value="g" class="color-filter" />
+                <span class="mana-symbol sym-g">G</span>
+              </label>
+              <label class="mana-toggle" title="Colorless">
+                <input type="checkbox" value="c" class="color-filter" />
+                <span class="mana-symbol sym-c">C</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="filter-section">
+            <label class="filter-label">Card Type</label>
+            <div class="type-filter-grid">
+              <label class="type-toggle"><input type="checkbox" value="creature"     class="type-filter" /><span>Creature</span></label>
+              <label class="type-toggle"><input type="checkbox" value="instant"      class="type-filter" /><span>Instant</span></label>
+              <label class="type-toggle"><input type="checkbox" value="sorcery"      class="type-filter" /><span>Sorcery</span></label>
+              <label class="type-toggle"><input type="checkbox" value="enchantment"  class="type-filter" /><span>Enchant</span></label>
+              <label class="type-toggle"><input type="checkbox" value="artifact"     class="type-filter" /><span>Artifact</span></label>
+              <label class="type-toggle"><input type="checkbox" value="planeswalker" class="type-filter" /><span>Walker</span></label>
+              <label class="type-toggle"><input type="checkbox" value="land"         class="type-filter" /><span>Land</span></label>
+              <label class="type-toggle"><input type="checkbox" value="battle"       class="type-filter" /><span>Battle</span></label>
+            </div>
+          </div>
+
+          <div class="filter-section">
+            <label class="filter-label">Set Code</label>
+            <input type="text" id="set-input" class="d2-input" placeholder="e.g. ltr, m21, bro..." />
+          </div>
+
+          <div class="filter-section">
+            <label class="filter-label">Sort By</label>
+            <select id="sort-select" class="d2-select">
+              <option value="name">Name</option>
+              <option value="cmc">Mana Cost</option>
+              <option value="rarity">Rarity</option>
+              <option value="released">Release Date</option>
+              <option value="color">Color</option>
+              <option value="power">Power</option>
+            </select>
+          </div>
+
+          <button id="search-btn" class="d2-button">Seek the Cards</button>
+          <button id="random-btn" class="d2-button d2-button-arcane">Random Tome</button>
+        </div>
+      </aside>
+
+      <!-- CENTER: Card Inventory -->
+      <main class="d2-inventory">
+        <div class="inventory-header">
+          <span id="result-count" class="result-count"></span>
+          <div id="pagination" class="pagination"></div>
+        </div>
+
+        <div id="card-grid" class="card-grid">
+          <div class="empty-state">
+            <p class="empty-title">The Vault Awaits</p>
+            <p class="empty-text">Use the Arcane Filter to seek your relics,<br />or summon a Random Tome to begin your journey.</p>
+          </div>
+        </div>
+
+        <div id="loading" class="loading-state hidden">
+          <div class="loading-orb"></div>
+          <p>Communing with the Horadric Archive&hellip;</p>
+        </div>
+      </main>
+
+      <!-- RIGHT: Stats Panel -->
+      <aside class="d2-panel stats-panel">
+        <div class="d2-corners"><i></i><i></i><i></i><i></i></div>
+        <div class="panel-header">
+          <span class="panel-title">Vault Stats</span>
+        </div>
+        <div class="panel-body">
+          <div class="stat-row">
+            <span class="stat-label">Cards Found</span>
+            <span class="stat-value" id="stat-total">&mdash;</span>
+          </div>
+          <div class="stat-divider"></div>
+
+          <div class="stat-row">
+            <span class="stat-label stat-col-w">&#9728; White</span>
+            <span class="stat-value" id="stat-w">&mdash;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label stat-col-u">&#9830; Blue</span>
+            <span class="stat-value" id="stat-u">&mdash;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label stat-col-b">&#9760; Black</span>
+            <span class="stat-value" id="stat-b">&mdash;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label stat-col-r">&#9733; Red</span>
+            <span class="stat-value" id="stat-r">&mdash;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label stat-col-g">&#9752; Green</span>
+            <span class="stat-value" id="stat-g">&mdash;</span>
+          </div>
+          <div class="stat-divider"></div>
+
+          <div class="stat-row">
+            <span class="stat-label">Creatures</span>
+            <span class="stat-value" id="stat-creatures">&mdash;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Instants</span>
+            <span class="stat-value" id="stat-instants">&mdash;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Sorceries</span>
+            <span class="stat-value" id="stat-sorceries">&mdash;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Other</span>
+            <span class="stat-value" id="stat-other">&mdash;</span>
+          </div>
+          <div class="stat-divider"></div>
+
+          <div class="stat-row">
+            <span class="stat-label rarity-common">Common</span>
+            <span class="stat-value" id="stat-common">&mdash;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label rarity-uncommon">Uncommon</span>
+            <span class="stat-value" id="stat-uncommon">&mdash;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label rarity-rare">Rare</span>
+            <span class="stat-value" id="stat-rare">&mdash;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label rarity-mythic">Mythic</span>
+            <span class="stat-value" id="stat-mythic">&mdash;</span>
+          </div>
+        </div>
+      </aside>
+
+    </div><!-- /.d2-main -->
+  </div><!-- /.d2-frame -->
+
+  <!-- ===== CARD TOOLTIP (D2 item description panel) ===== -->
+  <div id="card-tooltip" class="card-tooltip hidden" aria-hidden="true">
+    <div class="tooltip-inner">
+      <div class="d2-corners"><i></i><i></i><i></i><i></i></div>
+      <div class="tooltip-name" id="tt-name"></div>
+      <div class="tooltip-mana" id="tt-mana"></div>
+      <div class="tooltip-type" id="tt-type"></div>
+      <div class="tooltip-divider"></div>
+      <div class="tooltip-text" id="tt-text"></div>
+      <div class="tooltip-flavor" id="tt-flavor"></div>
+      <div class="tooltip-pt" id="tt-pt"></div>
+      <div class="tooltip-divider" id="tt-div2"></div>
+      <div class="tooltip-meta">
+        <span id="tt-set"></span>
+        <span id="tt-artist"></span>
+      </div>
+    </div>
+  </div>
+
+  <script src="/cards.js"></script>
 </body>
 </html>
