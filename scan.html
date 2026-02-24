@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scan | Vault of Tarnished Sigils</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="d2-frame">
+
+    <header class="d2-header">
+      <div class="header-inner">
+        <h1 class="site-title">The Vault of Tarnished Sigils</h1>
+        <nav class="d2-nav">
+          <a href="/index.html"      class="nav-link">Search</a>
+          <a href="/collection.html" class="nav-link">My Vault</a>
+          <a href="/decks.html"      class="nav-link">Decks</a>
+          <a href="/scan.html"       class="nav-link active">Scan</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="scan-layout">
+
+      <!-- Camera / preview viewport -->
+      <div class="scan-viewport">
+        <video id="scan-video"          autoplay playsinline muted></video>
+        <canvas id="scan-preview-canvas"></canvas>
+        <!-- Guide overlay — shown while camera is live -->
+        <div class="scan-guide" id="scan-guide">
+          <div class="scan-guide-rect"></div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="scan-controls">
+        <button id="btn-start-camera" class="d2-button">&#128247; Start Camera</button>
+        <button id="btn-capture"      class="d2-button" disabled>&#9711; Capture</button>
+        <button id="btn-upload"       class="d2-button d2-button-arcane">&#128193; Upload Image</button>
+        <button id="btn-identify"     class="d2-button" disabled>&#128269; Identify Card</button>
+        <input  id="scan-file-input"  type="file" accept="image/*" />
+      </div>
+
+      <!-- OCR progress -->
+      <div id="scan-progress" class="scan-progress"></div>
+
+      <!-- Results -->
+      <div id="scan-results-section" style="display:none">
+        <div class="scan-section-title">Best Matches — Click to Confirm</div>
+        <div id="scan-results-grid" class="scan-results-grid"></div>
+      </div>
+
+      <!-- Add-to-collection form (shown after confirming a card) -->
+      <div id="scan-add-form" class="scan-add-form hidden">
+        <div id="scan-selected-name" class="scan-selected-name"></div>
+        <div class="modal-action-row" style="margin-top:6px">
+          <label class="filter-label" style="margin:0;white-space:nowrap">Qty</label>
+          <input type="number" id="scan-qty" value="1" min="1" max="99" class="d2-input modal-qty-input" />
+          <select id="scan-condition" class="d2-select modal-cond-select">
+            <option>NM</option><option>LP</option><option>MP</option><option>HP</option><option>DMG</option>
+          </select>
+          <label class="foil-toggle">
+            <input type="checkbox" id="scan-foil" />
+            <span>Foil</span>
+          </label>
+        </div>
+        <button id="scan-add-btn" class="d2-button">+ Add to My Vault</button>
+        <button id="scan-again-btn" class="d2-button d2-button-arcane">&#8634; Scan Another</button>
+      </div>
+
+    </div><!-- /.scan-layout -->
+  </div><!-- /.d2-frame -->
+
+  <!-- Tesseract.js OCR library (loaded from CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="/utils.js"></script>
+  <script src="/api.js"></script>
+  <script src="/scan.js"></script>
+</body>
+</html>

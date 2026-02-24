@@ -697,3 +697,690 @@ body {
 .mana-pip.mana-z { background: #302818; color: var(--text-parch); }
 
 /* Numbers get the generic look via JS (class "mana-colorless") */
+
+/* ================================================================
+   CARD DETAIL MODAL
+   ================================================================ */
+.card-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.card-modal.hidden { display: none; }
+
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.88);
+  cursor: pointer;
+}
+
+.modal-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 680px;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.modal-close {
+  position: absolute;
+  top: 8px; right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1rem;
+  cursor: pointer;
+  z-index: 10;
+  padding: 4px 8px;
+  transition: color 0.15s;
+}
+.modal-close:hover { color: var(--text-gold); }
+
+.modal-body {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+  padding: 18px 16px 14px;
+}
+
+.modal-card-img {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--gold-dim);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+  display: block;
+}
+
+.modal-info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-card-name {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.modal-card-name.rarity-common   { color: var(--rarity-c); }
+.modal-card-name.rarity-uncommon { color: var(--rarity-u); }
+.modal-card-name.rarity-rare     { color: var(--rarity-r); }
+.modal-card-name.rarity-mythic   { color: var(--rarity-m); }
+
+.modal-card-mana { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 2px; }
+
+.modal-card-type {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  color: var(--text-body);
+}
+.modal-card-text {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  color: var(--text-parch);
+  line-height: 1.5;
+}
+.modal-card-flavor {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.modal-card-pt {
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-gold);
+  text-align: right;
+}
+.modal-card-meta {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+/* Action controls */
+.modal-actions {
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.modal-qty-input {
+  width: 54px;
+  padding: 5px 6px;
+  text-align: center;
+}
+
+.modal-cond-select { flex: 1; padding: 5px 8px; }
+
+.foil-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-body);
+  white-space: nowrap;
+}
+.foil-toggle input { accent-color: var(--gold-mid); cursor: pointer; }
+
+.modal-deck-section {
+  display: flex;
+  gap: 6px;
+}
+.modal-deck-section .d2-select { flex: 1; }
+.modal-deck-section .d2-button { margin-top: 0; white-space: nowrap; }
+
+/* Confirmation toast */
+.confirm-flash {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 10px 28px;
+  background: var(--panel);
+  border: 1px solid var(--gold-mid);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 4px var(--gold-dim);
+  color: var(--text-gold);
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: flashIn 2.8s ease forwards;
+}
+@keyframes flashIn {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  12%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ================================================================
+   COLLECTION PAGE  (collection.html)
+   ================================================================ */
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+  gap: 8px;
+  padding: 4px;
+  align-content: start;
+}
+
+.coll-card {
+  position: relative;
+  aspect-ratio: 63 / 88;
+  cursor: pointer;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--gold-dim);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.coll-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.coll-card:hover { transform: scale(1.05); box-shadow: 0 4px 14px rgba(200,146,42,0.4); }
+
+.coll-badge {
+  position: absolute;
+  font-family: 'Cinzel', serif;
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 2px;
+  line-height: 1.2;
+}
+.qty-badge {
+  bottom: 4px; right: 4px;
+  background: rgba(0,0,0,0.88);
+  border: 1px solid var(--gold-mid);
+  color: var(--text-gold);
+}
+.foil-badge {
+  top: 4px; left: 4px;
+  background: linear-gradient(135deg, #a0c0ff, #ffd0a0, #80ff80, #ffa0f0);
+  color: #111;
+  font-size: 0.48rem;
+}
+.cond-badge {
+  top: 4px; right: 4px;
+  background: rgba(0,0,0,0.85);
+  border: 1px solid var(--gold-dim);
+  color: var(--text-dim);
+}
+
+/* Edit modal (collection page) */
+.edit-modal-body {
+  padding: 18px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.edit-card-preview {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+.edit-card-img { width: 100px; border-radius: 5px; border: 1px solid var(--gold-dim); }
+.edit-card-info { flex: 1; }
+.edit-card-name {
+  font-family: 'Cinzel', serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-gold);
+  margin-bottom: 3px;
+}
+.edit-card-type {
+  font-family: 'Cinzel', serif;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+.edit-controls { display: flex; flex-direction: column; gap: 8px; }
+.edit-row { display: flex; align-items: center; gap: 10px; }
+.edit-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  min-width: 60px;
+}
+.qty-stepper { display: flex; align-items: center; gap: 6px; }
+.qty-stepper .d2-input { width: 50px; text-align: center; }
+.qty-step-btn {
+  width: 24px; height: 24px;
+  background: var(--panel-raised);
+  border: 1px solid var(--gold-dim);
+  color: var(--text-gold);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; transition: all 0.1s;
+}
+.qty-step-btn:hover { border-color: var(--gold-mid); }
+
+/* ================================================================
+   DECKS PAGE  (decks.html)
+   ================================================================ */
+.decks-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 12px;
+  padding: 14px 16px 20px;
+  max-width: 1440px;
+  margin: 0 auto;
+  flex: 1;
+}
+
+.deck-list { display: flex; flex-direction: column; gap: 5px; }
+
+.deck-list-item {
+  padding: 8px 10px;
+  border: 1px solid var(--gold-dim);
+  background: var(--bg-mid);
+  cursor: pointer;
+  transition: all 0.1s;
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  color: var(--text-body);
+  position: relative;
+}
+.deck-list-item:hover, .deck-list-item.active {
+  border-color: var(--gold-mid);
+  background: var(--panel-raised);
+  color: var(--text-gold);
+}
+.deck-list-item .deck-item-meta {
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.deck-list-item .deck-item-count {
+  position: absolute;
+  top: 8px; right: 8px;
+  font-size: 0.58rem;
+  color: var(--text-dim);
+}
+
+/* New deck inline form */
+.new-deck-form {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--gold-dim);
+  background: var(--bg-mid);
+}
+.new-deck-form.hidden { display: none; }
+
+/* Deck detail (right column) */
+.deck-detail { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+
+.deck-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.deck-detail-title {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 1.3rem;
+  color: var(--text-title);
+}
+.deck-detail-format {
+  font-family: 'Cinzel', serif;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+.deck-detail-actions { display: flex; gap: 6px; }
+.d2-button-sm {
+  padding: 5px 10px;
+  font-size: 0.62rem;
+  margin-top: 0;
+}
+
+/* Deck inline card search */
+.deck-search-wrap {
+  position: relative;
+}
+.deck-search-results {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  z-index: 50;
+  background: var(--panel);
+  border: 1px solid var(--gold-dark);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.8);
+  max-height: 280px;
+  overflow-y: auto;
+  display: none;
+}
+.deck-search-results.visible { display: block; }
+.deck-search-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--gold-dim);
+  transition: background 0.1s;
+}
+.deck-search-result:last-child { border-bottom: none; }
+.deck-search-result:hover { background: var(--panel-raised); }
+.deck-result-img { width: 28px; border-radius: 2px; }
+.deck-result-name {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  color: var(--text-parch);
+  flex: 1;
+}
+.deck-result-mana { display: flex; gap: 2px; }
+
+/* Card type group */
+.deck-type-group { margin-bottom: 14px; }
+.deck-type-header {
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--gold-dim);
+}
+
+.deck-card-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  transition: background 0.1s;
+}
+.deck-card-row:hover { background: var(--panel-raised); border-color: var(--gold-dim); }
+
+.deck-card-qty {
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  color: var(--text-gold);
+  min-width: 22px;
+  text-align: right;
+}
+.deck-card-name {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  color: var(--text-parch);
+  flex: 1;
+}
+.deck-card-mana { display: flex; gap: 2px; }
+
+.qty-btn {
+  width: 20px; height: 20px;
+  background: var(--panel);
+  border: 1px solid var(--gold-dim);
+  color: var(--text-gold);
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; transition: all 0.1s;
+  flex-shrink: 0;
+}
+.qty-btn:hover { border-color: var(--gold-mid); background: var(--panel-raised); }
+.qty-btn.remove-btn { color: #a04040; border-color: #501818; }
+.qty-btn.remove-btn:hover { color: #e06060; border-color: #903030; }
+
+/* Deck total bar */
+.deck-total-row {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  padding: 6px 0;
+  border-top: 1px solid var(--gold-dim);
+  margin-top: 4px;
+}
+.deck-total-row span { color: var(--text-gold); font-weight: 600; }
+
+/* ================================================================
+   SCAN PAGE  (scan.html)
+   ================================================================ */
+.scan-layout {
+  max-width: 680px;
+  margin: 20px auto;
+  padding: 0 14px 30px;
+}
+
+.scan-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: #000;
+  border: 1px solid var(--gold-dim);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 4px var(--gold-dim);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+#scan-video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+#scan-preview-canvas {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: none;
+  background: #000;
+}
+
+.scan-guide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.scan-guide-rect {
+  width: 58%;
+  aspect-ratio: 63 / 88;
+  border: 2px dashed rgba(200,146,42,0.65);
+  border-radius: 4px;
+  box-shadow: 0 0 0 2000px rgba(0,0,0,0.25);
+}
+
+.scan-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.scan-controls .d2-button { flex: 1; margin: 0; }
+
+#scan-file-input { display: none; }
+
+.scan-progress {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  min-height: 1.4em;
+  margin-bottom: 10px;
+}
+.scan-progress.active { color: var(--text-gold); }
+
+.scan-section-title {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-gold);
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--gold-dim);
+}
+
+.scan-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.scan-result-card {
+  cursor: pointer;
+  aspect-ratio: 63 / 88;
+  border: 2px solid var(--gold-dim);
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.15s;
+}
+.scan-result-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scan-result-card:hover {
+  border-color: var(--gold-bright);
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(240,200,72,0.45);
+}
+.scan-result-name {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 14px 4px 3px;
+  background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+  font-family: 'Cinzel', serif;
+  font-size: 0.5rem;
+  color: #f0e8d0;
+  text-align: center;
+}
+
+/* Scan add-to-collection form */
+.scan-add-form {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--gold-dim);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.scan-add-form.hidden { display: none; }
+.scan-selected-name {
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  color: var(--text-gold);
+}
+
+/* ================================================================
+   FILTER DRAWER + MOBILE RESPONSIVE
+   ================================================================ */
+
+/* Filter toggle button (hidden on desktop) */
+.filter-toggle-btn {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--panel);
+  border: 1px solid var(--gold-dim);
+  color: var(--text-gold);
+  font-family: 'Cinzel', serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.filter-toggle-btn:hover { border-color: var(--gold-mid); }
+
+/* Overlay behind open filter drawer */
+.filter-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 149;
+  cursor: pointer;
+}
+.filter-overlay.visible { display: block; }
+
+/* ---- Tablet (≤960px): filter becomes a slide-in drawer ---- */
+@media (max-width: 960px) {
+  .d2-main { grid-template-columns: 1fr 170px; }
+
+  .filter-panel {
+    position: fixed;
+    top: 0; bottom: 0;
+    left: -295px;
+    width: 285px;
+    z-index: 150;
+    overflow-y: auto;
+    transition: left 0.25s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.85);
+  }
+  .filter-panel.drawer-open { left: 0; }
+  .filter-toggle-btn { display: flex; }
+
+  .decks-layout { grid-template-columns: 210px 1fr; }
+}
+
+/* ---- Phone (≤600px): single column ---- */
+@media (max-width: 600px) {
+  .d2-main {
+    grid-template-columns: 1fr;
+    padding: 8px;
+    gap: 8px;
+  }
+  .stats-panel { display: none; }
+
+  .decks-layout {
+    grid-template-columns: 1fr;
+    padding: 8px;
+  }
+
+  .site-title { font-size: 1.05rem; }
+
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+    gap: 6px;
+  }
+  .collection-grid {
+    grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+    gap: 6px;
+  }
+
+  /* Modal: single column on phone */
+  .modal-body {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .modal-card-img { max-width: 180px; margin: 0 auto; }
+
+  .scan-results-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
+
+/* ---- Touch devices: always show name overlay, tap = modal ---- */
+@media (hover: none) {
+  .card-name-overlay { opacity: 1; }
+  .card-item { -webkit-tap-highlight-color: transparent; }
+}

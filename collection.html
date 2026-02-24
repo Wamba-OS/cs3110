@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Vault | Vault of Tarnished Sigils</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="d2-frame">
+
+    <header class="d2-header">
+      <div class="header-inner">
+        <h1 class="site-title">The Vault of Tarnished Sigils</h1>
+        <nav class="d2-nav">
+          <a href="/index.html"      class="nav-link">Search</a>
+          <a href="/collection.html" class="nav-link active">My Vault</a>
+          <a href="/decks.html"      class="nav-link">Decks</a>
+          <a href="/scan.html"       class="nav-link">Scan</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="d2-main">
+
+      <!-- LEFT: Filter panel -->
+      <aside class="d2-panel filter-panel">
+        <div class="d2-corners"><i></i><i></i><i></i><i></i></div>
+        <div class="panel-header"><span class="panel-title">Filter Vault</span></div>
+        <div class="panel-body">
+
+          <div class="filter-section">
+            <label class="filter-label">Search Name</label>
+            <input type="text" id="coll-search" class="d2-input" placeholder="Lightning Bolt..." />
+          </div>
+
+          <div class="filter-section">
+            <label class="filter-label">Rarity</label>
+            <div class="type-filter-grid">
+              <label class="type-toggle"><input type="checkbox" value="common"   class="rarity-filter" /><span class="rarity-common">Common</span></label>
+              <label class="type-toggle"><input type="checkbox" value="uncommon" class="rarity-filter" /><span class="rarity-uncommon">Uncommon</span></label>
+              <label class="type-toggle"><input type="checkbox" value="rare"     class="rarity-filter" /><span class="rarity-rare">Rare</span></label>
+              <label class="type-toggle"><input type="checkbox" value="mythic"   class="rarity-filter" /><span class="rarity-mythic">Mythic</span></label>
+            </div>
+          </div>
+
+          <div class="filter-section">
+            <label class="filter-label">Condition</label>
+            <div class="type-filter-grid">
+              <label class="type-toggle"><input type="checkbox" value="NM"  class="cond-filter" /><span>NM</span></label>
+              <label class="type-toggle"><input type="checkbox" value="LP"  class="cond-filter" /><span>LP</span></label>
+              <label class="type-toggle"><input type="checkbox" value="MP"  class="cond-filter" /><span>MP</span></label>
+              <label class="type-toggle"><input type="checkbox" value="HP"  class="cond-filter" /><span>HP</span></label>
+              <label class="type-toggle"><input type="checkbox" value="DMG" class="cond-filter" /><span>DMG</span></label>
+            </div>
+          </div>
+
+          <div class="filter-section">
+            <label class="filter-label">Sort By</label>
+            <select id="coll-sort" class="d2-select">
+              <option value="name">Name</option>
+              <option value="qty">Quantity</option>
+              <option value="rarity">Rarity</option>
+              <option value="added">Date Added</option>
+            </select>
+          </div>
+
+          <button id="coll-filter-btn" class="d2-button">Apply Filter</button>
+          <button id="coll-clear-btn"  class="d2-button d2-button-arcane">Clear</button>
+        </div>
+      </aside>
+
+      <!-- CENTER: Collection grid -->
+      <main class="d2-inventory">
+        <div class="inventory-header">
+          <button class="filter-toggle-btn" id="filter-toggle-btn">&#9776; Filters</button>
+          <span id="coll-count" class="result-count"></span>
+        </div>
+        <div id="coll-grid" class="collection-grid">
+          <div class="empty-state">
+            <p class="empty-title">Your Vault is Empty</p>
+            <p class="empty-text">Search for cards and add them to your collection,<br />or scan your physical cards to begin.</p>
+          </div>
+        </div>
+      </main>
+
+      <!-- RIGHT: Stats -->
+      <aside class="d2-panel stats-panel">
+        <div class="d2-corners"><i></i><i></i><i></i><i></i></div>
+        <div class="panel-header"><span class="panel-title">Vault Stats</span></div>
+        <div class="panel-body">
+          <div class="stat-row"><span class="stat-label">Unique Cards</span><span class="stat-value" id="stat-unique">—</span></div>
+          <div class="stat-row"><span class="stat-label">Total Count</span><span class="stat-value"  id="stat-total-count">—</span></div>
+          <div class="stat-divider"></div>
+          <div class="stat-row"><span class="stat-label stat-col-w">&#9728; White</span><span class="stat-value" id="stat-w">—</span></div>
+          <div class="stat-row"><span class="stat-label stat-col-u">&#9830; Blue</span><span class="stat-value" id="stat-u">—</span></div>
+          <div class="stat-row"><span class="stat-label stat-col-b">&#9760; Black</span><span class="stat-value" id="stat-b">—</span></div>
+          <div class="stat-row"><span class="stat-label stat-col-r">&#9733; Red</span><span class="stat-value" id="stat-r">—</span></div>
+          <div class="stat-row"><span class="stat-label stat-col-g">&#9752; Green</span><span class="stat-value" id="stat-g">—</span></div>
+          <div class="stat-divider"></div>
+          <div class="stat-row"><span class="stat-label rarity-common">Common</span><span class="stat-value" id="stat-common">—</span></div>
+          <div class="stat-row"><span class="stat-label rarity-uncommon">Uncommon</span><span class="stat-value" id="stat-uncommon">—</span></div>
+          <div class="stat-row"><span class="stat-label rarity-rare">Rare</span><span class="stat-value" id="stat-rare">—</span></div>
+          <div class="stat-row"><span class="stat-label rarity-mythic">Mythic</span><span class="stat-value" id="stat-mythic">—</span></div>
+          <div class="stat-divider"></div>
+          <div class="stat-row"><span class="stat-label">Foil</span><span class="stat-value" id="stat-foil">—</span></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- FILTER DRAWER OVERLAY -->
+  <div class="filter-overlay" id="filter-overlay"></div>
+
+  <!-- EDIT CARD MODAL -->
+  <div id="edit-modal" class="card-modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="edit-modal-overlay"></div>
+    <div class="modal-content d2-panel" style="max-width:440px">
+      <div class="d2-corners"><i></i><i></i><i></i><i></i></div>
+      <button class="modal-close" id="edit-modal-close">&#10005;</button>
+      <div class="edit-modal-body">
+        <div class="edit-card-preview">
+          <img id="edit-img" src="" alt="" class="edit-card-img" />
+          <div class="edit-card-info">
+            <div id="edit-name" class="edit-card-name"></div>
+            <div id="edit-type" class="edit-card-type"></div>
+          </div>
+        </div>
+        <div class="edit-controls">
+          <div class="edit-row">
+            <span class="edit-label">Quantity</span>
+            <div class="qty-stepper">
+              <button class="qty-step-btn" id="qty-minus">&#8722;</button>
+              <input type="number" id="edit-qty" value="1" min="1" max="99" class="d2-input" style="width:54px;text-align:center" />
+              <button class="qty-step-btn" id="qty-plus">+</button>
+            </div>
+          </div>
+          <div class="edit-row">
+            <span class="edit-label">Condition</span>
+            <select id="edit-condition" class="d2-select" style="flex:1">
+              <option>NM</option><option>LP</option><option>MP</option><option>HP</option><option>DMG</option>
+            </select>
+          </div>
+          <div class="edit-row">
+            <span class="edit-label">Foil</span>
+            <label class="foil-toggle">
+              <input type="checkbox" id="edit-foil" />
+              <span>Foil copy</span>
+            </label>
+          </div>
+        </div>
+        <button id="edit-save-btn"   class="d2-button">Save Changes</button>
+        <button id="edit-remove-btn" class="d2-button d2-button-arcane" style="border-color:#602020;color:#e06060">&#10006; Remove from Vault</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/utils.js"></script>
+  <script src="/api.js"></script>
+  <script src="/collection.js"></script>
+</body>
+</html>

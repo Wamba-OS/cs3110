@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Decks | Vault of Tarnished Sigils</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="d2-frame">
+
+    <header class="d2-header">
+      <div class="header-inner">
+        <h1 class="site-title">The Vault of Tarnished Sigils</h1>
+        <nav class="d2-nav">
+          <a href="/index.html"      class="nav-link">Search</a>
+          <a href="/collection.html" class="nav-link">My Vault</a>
+          <a href="/decks.html"      class="nav-link active">Decks</a>
+          <a href="/scan.html"       class="nav-link">Scan</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="decks-layout">
+
+      <!-- LEFT: Deck list -->
+      <aside class="d2-panel" style="overflow:visible">
+        <div class="d2-corners"><i></i><i></i><i></i><i></i></div>
+        <div class="panel-header"><span class="panel-title">Your Grimoires</span></div>
+        <div class="panel-body">
+
+          <div id="deck-list" class="deck-list"></div>
+
+          <div style="margin-top:8px">
+            <button id="view-wishlist-btn" class="d2-button d2-button-arcane">&#9734; Wishlist</button>
+            <button id="new-deck-btn"      class="d2-button">+ New Grimoire</button>
+          </div>
+
+          <!-- Inline new-deck form -->
+          <div id="new-deck-form" class="new-deck-form hidden">
+            <input type="text" id="new-deck-name" class="d2-input" placeholder="Grimoire name..." />
+            <select id="new-deck-format" class="d2-select">
+              <option>Casual</option>
+              <option>Standard</option>
+              <option>Modern</option>
+              <option>Legacy</option>
+              <option>Vintage</option>
+              <option>Commander</option>
+              <option>Pioneer</option>
+              <option>Pauper</option>
+              <option>Draft</option>
+            </select>
+            <button id="create-deck-btn"  class="d2-button">Create</button>
+            <button id="cancel-deck-btn"  class="d2-button d2-button-arcane">Cancel</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- RIGHT: Deck detail -->
+      <main id="deck-detail" class="deck-detail">
+        <div class="empty-state">
+          <p class="empty-title">Select a Grimoire</p>
+          <p class="empty-text">Choose a grimoire from the left,<br />or create a new one to begin.</p>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <script src="/utils.js"></script>
+  <script src="/api.js"></script>
+  <script src="/decks.js"></script>
+</body>
+</html>

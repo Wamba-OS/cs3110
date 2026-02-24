@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Vault of Tarnished Sigils</title>
+  <title>Search | Vault of Tarnished Sigils</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -17,8 +17,10 @@
       <div class="header-inner">
         <h1 class="site-title">The Vault of Tarnished Sigils</h1>
         <nav class="d2-nav">
-          <a href="/index.html" class="nav-link active">Collection</a>
-          <a href="/test.html" class="nav-link">About</a>
+          <a href="/index.html"      class="nav-link active">Search</a>
+          <a href="/collection.html" class="nav-link">My Vault</a>
+          <a href="/decks.html"      class="nav-link">Decks</a>
+          <a href="/scan.html"       class="nav-link">Scan</a>
         </nav>
       </div>
     </header>
@@ -108,6 +110,7 @@
       <!-- CENTER: Card Inventory -->
       <main class="d2-inventory">
         <div class="inventory-header">
+          <button class="filter-toggle-btn" id="filter-toggle-btn">&#9776; Filters</button>
           <span id="result-count" class="result-count"></span>
           <div id="pagination" class="pagination"></div>
         </div>
@@ -200,6 +203,57 @@
     </div><!-- /.d2-main -->
   </div><!-- /.d2-frame -->
 
+  <!-- ===== FILTER DRAWER OVERLAY (mobile) ===== -->
+  <div class="filter-overlay" id="filter-overlay"></div>
+
+  <!-- ===== CARD DETAIL MODAL ===== -->
+  <div id="card-modal" class="card-modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="modal-overlay"></div>
+    <div class="modal-content d2-panel">
+      <div class="d2-corners"><i></i><i></i><i></i><i></i></div>
+      <button class="modal-close" id="modal-close" aria-label="Close">&#10005;</button>
+      <div class="modal-body">
+        <div class="modal-image-col">
+          <img id="modal-img" src="" alt="" class="modal-card-img" />
+        </div>
+        <div class="modal-info-col">
+          <div id="modal-name"   class="modal-card-name"></div>
+          <div id="modal-mana"   class="modal-card-mana"></div>
+          <div id="modal-type"   class="modal-card-type"></div>
+          <div class="tooltip-divider"></div>
+          <div id="modal-text"   class="modal-card-text"></div>
+          <div id="modal-flavor" class="modal-card-flavor"></div>
+          <div id="modal-pt"     class="modal-card-pt"></div>
+          <div class="tooltip-divider"></div>
+          <div id="modal-meta"   class="modal-card-meta"></div>
+
+          <div class="modal-actions">
+            <div class="modal-action-row">
+              <label class="filter-label" style="margin:0;white-space:nowrap">Qty</label>
+              <input type="number" id="modal-qty" value="1" min="1" max="99" class="d2-input modal-qty-input" />
+              <select id="modal-condition" class="d2-select modal-cond-select">
+                <option>NM</option><option>LP</option>
+                <option>MP</option><option>HP</option><option>DMG</option>
+              </select>
+              <label class="foil-toggle">
+                <input type="checkbox" id="modal-foil" />
+                <span>Foil</span>
+              </label>
+            </div>
+            <button id="btn-add-collection" class="d2-button">+ Add to My Vault</button>
+            <button id="btn-add-wishlist"   class="d2-button d2-button-arcane">&#9734; Add to Wishlist</button>
+            <div class="modal-deck-section">
+              <select id="modal-deck-select" class="d2-select">
+                <option value="">&#8212; Select Deck &#8212;</option>
+              </select>
+              <button id="btn-add-deck" class="d2-button">+ Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== CARD TOOLTIP (D2 item description panel) ===== -->
   <div id="card-tooltip" class="card-tooltip hidden" aria-hidden="true">
     <div class="tooltip-inner">
@@ -219,6 +273,8 @@
     </div>
   </div>
 
+  <script src="/utils.js"></script>
+  <script src="/api.js"></script>
   <script src="/cards.js"></script>
 </body>
 </html>
