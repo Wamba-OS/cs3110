@@ -123,6 +123,24 @@ body {
   border-bottom-color: var(--panel);
 }
 
+.nav-btn {
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-body);
+  background: transparent;
+  border: 1px solid var(--gold-dim);
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.nav-btn:hover {
+  color: var(--text-gold);
+  border-color: var(--gold-dark);
+  background: var(--panel-raised);
+}
+
 /* ================================================================
    MAIN 3-COLUMN LAYOUT
    ================================================================ */
