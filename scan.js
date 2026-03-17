@@ -25,6 +25,8 @@ const scanCondition  = document.getElementById('scan-condition');
 const scanFoil       = document.getElementById('scan-foil');
 const scanAddBtn     = document.getElementById('scan-add-btn');
 const scanAgainBtn   = document.getElementById('scan-again-btn');
+const cropDebug      = document.getElementById('scan-crop-debug');
+const cropCanvas     = document.getElementById('scan-crop-canvas');
 
 let stream        = null;   // MediaStream from camera
 let capturedImage = null;   // HTMLImageElement of captured/uploaded frame
@@ -111,10 +113,16 @@ btnIdentify.addEventListener('click', async () => {
   confirmedCard = null;
 
   setProgress('Preparing image for identification...', true);
+  cropDebug.style.display = 'none';
 
   try {
-    // Crop to top ~20% of image (where the card name lives in MTG layout)
     const croppedCanvas = cropNameArea(capturedImage);
+
+    // Show the crop strip so you can verify it covers the card name
+    cropCanvas.width  = croppedCanvas.width;
+    cropCanvas.height = croppedCanvas.height;
+    cropCanvas.getContext('2d').drawImage(croppedCanvas, 0, 0);
+    cropDebug.style.display = '';
 
     setProgress('Loading OCR engine (first run may take a moment)...', true);
 
@@ -126,11 +134,18 @@ btnIdentify.addEventListener('click', async () => {
       },
     });
 
+    // Single-line mode + restrict to card-name characters for accuracy
+    await worker.setParameters({
+      tessedit_pageseg_mode: '7',
+      tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ,'-.",
+    });
+
     const { data: { text } } = await worker.recognize(croppedCanvas);
     await worker.terminate();
 
     const cleaned = cleanOcrText(text);
-    setProgress(`OCR read: "${cleaned}" — searching Scryfall...`, true);
+    const rawPreview = text.trim().slice(0, 60).replace(/\n/g, ' ↵ ');
+    setProgress(`OCR raw: "${rawPreview}" → cleaned: "${cleaned}" — searching Scryfall...`, true);
 
     if (!cleaned) {
       setProgress('Could not read card name. Try better lighting or a clearer photo.');
@@ -153,16 +168,38 @@ btnIdentify.addEventListener('click', async () => {
   }
 });
 
-// ---- Crop top 20% of image as a canvas ----
+// ---- Crop the name band from the image ----
+// MTG card name sits in a thin strip very near the top (~2–13%).
+// We use the left 70% to avoid the mana cost icon on the right.
+// Upscale 3× and boost contrast to help Tesseract accuracy.
 function cropNameArea(img) {
   const w = img.naturalWidth  || img.width  || previewCanvas.width;
   const h = img.naturalHeight || img.height || previewCanvas.height;
-  const cropH = Math.floor(h * 0.20);
 
+  const srcX = 0;
+  const srcY = Math.floor(h * 0.02);   // start just below the card border
+  const srcW = Math.floor(w * 0.70);   // left 70% — avoid mana cost
+  const srcH = Math.floor(h * 0.11);   // name band height
+
+  const SCALE = 3;
   const c   = document.createElement('canvas');
-  c.width   = w;
-  c.height  = cropH;
-  c.getContext('2d').drawImage(img, 0, 0, w, h, 0, 0, w, cropH);
+  c.width   = srcW * SCALE;
+  c.height  = srcH * SCALE;
+
+  const ctx = c.getContext('2d');
+  // Correct crop: source region → upscaled destination
+  ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, c.width, c.height);
+
+  // Pre-process: grayscale + contrast boost for better OCR
+  const imageData = ctx.getImageData(0, 0, c.width, c.height);
+  const d = imageData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    const boosted = gray > 140 ? Math.min(255, gray * 1.35) : Math.max(0, gray * 0.65);
+    d[i] = d[i + 1] = d[i + 2] = boosted;
+  }
+  ctx.putImageData(imageData, 0, 0);
+
   return c;
 }
 
@@ -176,35 +213,89 @@ function canvasToImage(canvas) {
 
 // ---- Clean OCR output ----
 function cleanOcrText(raw) {
-  // Take first non-empty line, strip non-alpha-space characters
-  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = raw.split('\n')
+    .map(l => l.replace(/[^a-zA-Z0-9 ',\-.]/g, '').trim())
+    .filter(l => l.length > 1);
   if (!lines.length) return '';
-  // The card name is usually the first recognizable line
-  // Remove special characters but keep letters, numbers, spaces, hyphens, apostrophes
-  return lines[0].replace(/[^a-zA-Z0-9 '\-,]/g, '').trim();
+  // Prefer the longest line — it's most likely to be the full card name
+  return lines.sort((a, b) => b.length - a.length)[0].trim();
 }
 
 // ---- Scryfall search ----
+// Strategy: autocomplete handles partial/mangled OCR text far better than
+// fuzzy or search endpoints — it's the same engine Scryfall's own search box uses.
 async function searchScryfall(text) {
+  const seen    = new Set();
   const results = [];
 
-  // 1. Fuzzy match — best single result
-  try {
-    const res  = await fetch(`${SCRYFALL}/cards/named?fuzzy=${encodeURIComponent(text)}`);
-    const data = await res.json();
-    if (res.ok && data.object === 'card') results.push(data);
-  } catch { /* ok */ }
+  // Returns up to 20 card name suggestions for partial/fuzzy input
+  async function autocomplete(q) {
+    if (!q || q.length < 2) return [];
+    try {
+      const res  = await fetch(`${SCRYFALL}/cards/autocomplete?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      return (res.ok && data.data) ? data.data : [];
+    } catch { return []; }
+  }
 
-  // 2. Full-text search — up to 5 alternatives
-  try {
-    const res  = await fetch(`${SCRYFALL}/cards/search?q=name%3A${encodeURIComponent(text)}&order=name`);
-    const data = await res.json();
-    if (res.ok && data.data) {
-      for (const c of data.data.slice(0, 5)) {
-        if (!results.find(r => r.id === c.id)) results.push(c);
+  // Fetch a full card object by exact name
+  async function fetchNamed(name) {
+    if (seen.has(name)) return;
+    seen.add(name);
+    try {
+      const res  = await fetch(`${SCRYFALL}/cards/named?exact=${encodeURIComponent(name)}`);
+      const data = await res.json();
+      if (res.ok && data.object === 'card' && !seen.has(data.id)) {
+        seen.add(data.id);
+        results.push(data);
       }
+    } catch { /* ok */ }
+  }
+
+  // Also try fuzzy — if OCR was close it may nail it outright
+  async function tryFuzzy(q) {
+    if (!q) return;
+    try {
+      const res  = await fetch(`${SCRYFALL}/cards/named?fuzzy=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (res.ok && data.object === 'card' && !seen.has(data.id)) {
+        seen.add(data.id);
+        results.unshift(data); // fuzzy hit is probably the best match — put it first
+      }
+    } catch { /* ok */ }
+  }
+
+  // 1. Fuzzy on full text (lucky path)
+  await tryFuzzy(text);
+
+  // 2. Autocomplete on full text
+  for (const name of (await autocomplete(text)).slice(0, 4)) {
+    await fetchNamed(name);
+    if (results.length >= 6) return results;
+  }
+
+  // 3. Autocomplete + fuzzy on each significant word
+  if (results.length < 3) {
+    const words = text.split(/\s+/).filter(w => w.length >= 4);
+    for (const word of words) {
+      await tryFuzzy(word);
+      for (const name of (await autocomplete(word)).slice(0, 3)) {
+        await fetchNamed(name);
+        if (results.length >= 6) return results;
+      }
+      if (results.length >= 4) break;
     }
-  } catch { /* ok */ }
+  }
+
+  // 4. Progressive prefix truncation — handles OCR cutting off the end
+  if (results.length === 0 && text.length > 5) {
+    for (let len = Math.floor(text.length * 0.8); len >= 4; len -= 2) {
+      for (const name of (await autocomplete(text.slice(0, len))).slice(0, 3)) {
+        await fetchNamed(name);
+      }
+      if (results.length > 0) break;
+    }
+  }
 
   return results.slice(0, 6);
 }
@@ -274,6 +365,7 @@ function resetScan() {
   addForm.classList.add('hidden');
   resultsSection.style.display = 'none';
   resultsGrid.innerHTML = '';
+  cropDebug.style.display = 'none';
   setProgress('');
 }
 
