@@ -40,6 +40,8 @@
 /* ---- Reset ---- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body { overflow-x: hidden; }
+
 /* ---- Custom scrollbar ---- */
 ::-webkit-scrollbar       { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -99,7 +101,7 @@ body {
 }
 
 /* ---- Top navigation ---- */
-.d2-nav { display: flex; gap: 2px; }
+.d2-nav { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
 
 .nav-link {
   font-family: 'Cinzel', serif;
@@ -1360,6 +1362,10 @@ body {
   .filter-toggle-btn { display: flex; }
 
   .decks-layout { grid-template-columns: 210px 1fr; }
+
+  .d2-header { padding: 12px 16px 0; }
+  .nav-link { padding: 5px 14px; }
+  .nav-btn  { padding: 4px 12px; }
 }
 
 /* ---- Phone (≤600px): single column ---- */
@@ -1376,7 +1382,22 @@ body {
     padding: 8px;
   }
 
-  .site-title { font-size: 1.05rem; }
+  .d2-header { padding: 10px 10px 0; }
+  .header-inner { gap: 6px; }
+
+  .site-title { font-size: clamp(0.9rem, 5vw, 1.2rem); }
+
+  .nav-link {
+    padding: 5px 10px;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+  }
+  .nav-btn {
+    padding: 4px 10px;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+  }
+  #auth-widget { justify-content: center; }
 
   .card-grid {
     grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
@@ -1395,6 +1416,12 @@ body {
   .modal-card-img { max-width: 180px; margin: 0 auto; }
 
   .scan-results-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+
+  /* Deck detail: stack panels */
+  .deck-detail-layout { flex-direction: column; }
+
+  /* Filter toggle full width on phone */
+  .filter-toggle-btn { width: 100%; justify-content: center; }
 }
 
 /* ---- Touch devices: always show name overlay, tap = modal ---- */
