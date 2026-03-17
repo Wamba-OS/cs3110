@@ -61,16 +61,44 @@ function stopCamera() {
 
 // ---- Capture from video ----
 btnCapture.addEventListener('click', () => {
-  const w = video.videoWidth  || 640;
-  const h = video.videoHeight || 480;
-  previewCanvas.width  = w;
-  previewCanvas.height = h;
+  const vW = video.videoWidth  || 640;
+  const vH = video.videoHeight || 480;
+
+  // The video element uses object-fit:cover inside the viewport box.
+  // We need to map the guide rectangle (in CSS/viewport pixels) back to
+  // the actual video pixel coordinates so the crop matches the guide box.
+  const cW = video.clientWidth;
+  const cH = video.clientHeight;
+
+  // Scale used by object-fit:cover — the larger of the two ratios
+  const scale   = Math.max(cW / vW, cH / vH);
+  // How far the rendered video overflows the viewport (may be negative = cropped)
+  const offsetX = (cW - vW * scale) / 2;
+  const offsetY = (cH - vH * scale) / 2;
+
+  // Guide rectangle dimensions in viewport space (mirrors the CSS)
+  const guideW    = 0.58 * cW;
+  const guideH    = guideW * (88 / 63);          // MTG card aspect ratio
+  const guideLeft = (cW - guideW) / 2;
+  const guideTop  = (cH - guideH) / 2;
+
+  // Convert guide rect to video pixel coordinates
+  const cropX = (guideLeft - offsetX) / scale;
+  const cropY = (guideTop  - offsetY) / scale;
+  const cropW = guideW / scale;
+  const cropH = guideH / scale;
+
+  // Output at a fixed card-sized resolution
+  const outW = 630;
+  const outH = Math.round(outW * (88 / 63));
+
+  previewCanvas.width  = outW;
+  previewCanvas.height = outH;
   previewCanvas.style.display = 'block';
   video.style.display = 'none';
   guide.style.display = 'none';
 
-  const ctx = previewCanvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, w, h);
+  previewCanvas.getContext('2d').drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
   capturedImage = canvasToImage(previewCanvas);
   btnIdentify.disabled = false;
