@@ -1,4 +1,5 @@
 'use strict';
+require('dotenv').config();
 const express    = require('express');
 const Database   = require('better-sqlite3');
 const path       = require('path');
@@ -72,19 +73,23 @@ db.exec(`
 (function seedAdmin() {
   const existing = db.prepare("SELECT id FROM users WHERE username='Wamba'").get();
   if (!existing) {
-    const hash = bcrypt.hashSync('V@ult#Wamba9!mTx', 10);
+    const password = process.env.ADMIN_PASSWORD;
+    if (!password) throw new Error('ADMIN_PASSWORD environment variable must be set');
+    const hash = bcrypt.hashSync(password, 10);
     db.prepare("INSERT INTO users (username, password_hash, role) VALUES ('Wamba', ?, 'admin')").run(hash);
-    console.log('Admin credentials created → username: Wamba  password: V@ult#Wamba9!mTx');
+    console.log('Admin user created → username: Wamba');
   }
 })();
 
-// ---- Seed author (optional, for testing) ----
+// ---- Seed author (optional) ----
 (function seedAuthor() {
   const existing = db.prepare("SELECT id FROM users WHERE username='Wamba_author'").get();
   if (!existing) {
-    const hash = bcrypt.hashSync('S!gnX7#auth$Wamba', 10);
+    const password = process.env.AUTHOR_PASSWORD;
+    if (!password) return; // optional — skip if not set
+    const hash = bcrypt.hashSync(password, 10);
     db.prepare("INSERT INTO users (username, password_hash, role) VALUES ('Wamba_author', ?, 'author')").run(hash);
-    console.log('Author credentials created → username: Wamba_author  password: S!gnX7#auth$Wamba');
+    console.log('Author user created → username: Wamba_author');
   }
 })();
 
