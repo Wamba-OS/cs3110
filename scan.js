@@ -25,8 +25,6 @@ const scanCondition  = document.getElementById('scan-condition');
 const scanFoil       = document.getElementById('scan-foil');
 const scanAddBtn     = document.getElementById('scan-add-btn');
 const scanAgainBtn   = document.getElementById('scan-again-btn');
-const cropDebug      = document.getElementById('scan-crop-debug');
-const cropCanvas     = document.getElementById('scan-crop-canvas');
 
 let stream        = null;   // MediaStream from camera
 let capturedImage = null;   // HTMLImageElement of captured/uploaded frame
@@ -67,7 +65,7 @@ btnCapture.addEventListener('click', () => {
   const h = video.videoHeight || 480;
   previewCanvas.width  = w;
   previewCanvas.height = h;
-  previewCanvas.style.display = '';
+  previewCanvas.style.display = 'block';
   video.style.display = 'none';
   guide.style.display = 'none';
 
@@ -90,7 +88,7 @@ fileInput.addEventListener('change', () => {
     img.onload = () => {
       previewCanvas.width  = img.naturalWidth;
       previewCanvas.height = img.naturalHeight;
-      previewCanvas.style.display = '';
+      previewCanvas.style.display = 'block';
       video.style.display  = 'none';
       guide.style.display  = 'none';
       previewCanvas.getContext('2d').drawImage(img, 0, 0);
@@ -113,16 +111,9 @@ btnIdentify.addEventListener('click', async () => {
   confirmedCard = null;
 
   setProgress('Preparing image for identification...', true);
-  cropDebug.style.display = 'none';
-
   try {
     const croppedCanvas = cropNameArea(capturedImage);
 
-    // Show the crop strip so you can verify it covers the card name
-    cropCanvas.width  = croppedCanvas.width;
-    cropCanvas.height = croppedCanvas.height;
-    cropCanvas.getContext('2d').drawImage(croppedCanvas, 0, 0);
-    cropDebug.style.display = '';
 
     setProgress('Loading OCR engine (first run may take a moment)...', true);
 
@@ -365,7 +356,6 @@ function resetScan() {
   addForm.classList.add('hidden');
   resultsSection.style.display = 'none';
   resultsGrid.innerHTML = '';
-  cropDebug.style.display = 'none';
   setProgress('');
 }
 
