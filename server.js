@@ -1,15 +1,26 @@
 'use strict';
-const express  = require('express');
-const Database = require('better-sqlite3');
-const path     = require('path');
+const express    = require('express');
+const Database   = require('better-sqlite3');
+const path       = require('path');
+const https      = require('https');
+const fs         = require('fs');
+const jwt        = require('jsonwebtoken');
+const bcrypt     = require('bcryptjs');
+const selfsigned = require('selfsigned');
 
 const app = express();
 const db  = new Database(path.join(__dirname, 'vault.db'));
 
+const JWT_SECRET = process.env.JWT_SECRET || 'vault-dev-secret-change-in-prod';
+
+// ---- SSL cert paths ----
+const certPath = path.join(__dirname, 'cert.pem');
+const keyPath  = path.join(__dirname, 'key.pem');
+
+// ---- DB setup ----
 db.pragma('foreign_keys = ON');
 db.pragma('journal_mode  = WAL');
 
-// ---- Init schema ----
 db.exec(`
   CREATE TABLE IF NOT EXISTS collection (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,21 +58,117 @@ db.exec(`
     mana_cost   TEXT    DEFAULT '',
     type_line   TEXT    DEFAULT ''
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    username      TEXT    NOT NULL UNIQUE,
+    password_hash TEXT    NOT NULL,
+    role          TEXT    NOT NULL DEFAULT 'author' CHECK(role IN ('admin','author')),
+    created_at    TEXT    DEFAULT (datetime('now'))
+  );
 `);
 
-// ---- Middleware ----
+// ---- Seed admin ----
+(function seedAdmin() {
+  const existing = db.prepare("SELECT id FROM users WHERE username='Wamba'").get();
+  if (!existing) {
+    const hash = bcrypt.hashSync('V@ult#Wamba9!mTx', 10);
+    db.prepare("INSERT INTO users (username, password_hash, role) VALUES ('Wamba', ?, 'admin')").run(hash);
+    console.log('Admin credentials created → username: Wamba  password: V@ult#Wamba9!mTx');
+  }
+})();
+
+// ---- Seed author (optional, for testing) ----
+(function seedAuthor() {
+  const existing = db.prepare("SELECT id FROM users WHERE username='Wamba_author'").get();
+  if (!existing) {
+    const hash = bcrypt.hashSync('S!gnX7#auth$Wamba', 10);
+    db.prepare("INSERT INTO users (username, password_hash, role) VALUES ('Wamba_author', ?, 'author')").run(hash);
+    console.log('Author credentials created → username: Wamba_author  password: S!gnX7#auth$Wamba');
+  }
+})();
+
+// ================================================================
+// MIDDLEWARE
+// ================================================================
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
+
+function requireAuth(req, res, next) {
+  const header = req.headers['authorization'];
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized — login required' });
+  }
+  try {
+    req.user = jwt.verify(header.slice(7), JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
+function requireAdmin(req, res, next) {
+  requireAuth(req, res, () => {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden — admin access required' });
+    }
+    next();
+  });
+}
+
+// ================================================================
+// AUTH
+// ================================================================
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body ?? {};
+  if (!username || !password) {
+    return res.status(400).json({ error: 'username and password are required' });
+  }
+  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  const token = jwt.sign(
+    { id: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '8h' }
+  );
+  res.json({ token, username: user.username, role: user.role });
+});
+
+// Admin-only: create new credentials
+app.post('/api/auth/register', requireAdmin, (req, res) => {
+  const { username, password, role = 'author' } = req.body ?? {};
+  if (!username || !password) {
+    return res.status(400).json({ error: 'username and password are required' });
+  }
+  if (!['admin', 'author'].includes(role)) {
+    return res.status(400).json({ error: "role must be 'admin' or 'author'" });
+  }
+  try {
+    const hash = bcrypt.hashSync(password, 10);
+    const r = db.prepare(
+      'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)'
+    ).run(username, hash, role);
+    res.status(201).json({ id: r.lastInsertRowid, username, role });
+  } catch (e) {
+    if (e.message.includes('UNIQUE')) {
+      return res.status(409).json({ error: 'Username already exists' });
+    }
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ================================================================
 // COLLECTION
 // ================================================================
-app.get('/api/collection', (req, res) => {
+// GET is unauthenticated (public read)
+app.get('/api/collection', (_req, res) => {
   try { res.json(db.prepare('SELECT * FROM collection ORDER BY name').all()); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/collection', (req, res) => {
+app.post('/api/collection', requireAuth, (req, res) => {
   try {
     const {
       scryfall_id, name,
@@ -88,7 +195,7 @@ app.post('/api/collection', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/collection/:id', (req, res) => {
+app.put('/api/collection/:id', requireAuth, (req, res) => {
   try {
     const { quantity, condition, foil } = req.body;
     db.prepare('UPDATE collection SET quantity=?,condition=?,foil=? WHERE id=?')
@@ -97,7 +204,7 @@ app.put('/api/collection/:id', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/collection/:id', (req, res) => {
+app.delete('/api/collection/:id', requireAuth, (req, res) => {
   try {
     db.prepare('DELETE FROM collection WHERE id=?').run(req.params.id);
     res.json({ success: true });
@@ -107,7 +214,7 @@ app.delete('/api/collection/:id', (req, res) => {
 // ================================================================
 // DECKS
 // ================================================================
-app.get('/api/decks', (req, res) => {
+app.get('/api/decks', (_req, res) => {
   try {
     res.json(db.prepare(`
       SELECT d.*, COUNT(dc.id) AS card_count
@@ -118,7 +225,7 @@ app.get('/api/decks', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/decks', (req, res) => {
+app.post('/api/decks', requireAuth, (req, res) => {
   try {
     const { name, description = '', format = 'Casual' } = req.body;
     const r = db.prepare('INSERT INTO decks (name,description,format) VALUES (?,?,?)').run(name, description, format);
@@ -135,7 +242,7 @@ app.get('/api/decks/:id', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/decks/:id', (req, res) => {
+app.put('/api/decks/:id', requireAuth, (req, res) => {
   try {
     const { name, description, format } = req.body;
     db.prepare('UPDATE decks SET name=?,description=?,format=? WHERE id=?').run(name, description, format, req.params.id);
@@ -143,14 +250,14 @@ app.put('/api/decks/:id', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/decks/:id', (req, res) => {
+app.delete('/api/decks/:id', requireAuth, (req, res) => {
   try {
     db.prepare('DELETE FROM decks WHERE id=?').run(req.params.id);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/decks/:id/cards', (req, res) => {
+app.post('/api/decks/:id/cards', requireAuth, (req, res) => {
   try {
     const {
       scryfall_id, name, quantity = 1, board = 'main',
@@ -173,7 +280,7 @@ app.post('/api/decks/:id/cards', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/decks/:deckId/cards/:cardId', (req, res) => {
+app.put('/api/decks/:deckId/cards/:cardId', requireAuth, (req, res) => {
   try {
     const { quantity } = req.body;
     if (quantity <= 0) {
@@ -185,7 +292,7 @@ app.put('/api/decks/:deckId/cards/:cardId', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/decks/:deckId/cards/:cardId', (req, res) => {
+app.delete('/api/decks/:deckId/cards/:cardId', requireAuth, (req, res) => {
   try {
     db.prepare('DELETE FROM deck_cards WHERE id=?').run(req.params.cardId);
     res.json({ success: true });
@@ -206,7 +313,7 @@ function getOrCreateWishlist() {
   return w;
 }
 
-app.get('/api/wishlist', (req, res) => {
+app.get('/api/wishlist', (_req, res) => {
   try {
     const w = getOrCreateWishlist();
     const cards = db.prepare('SELECT * FROM deck_cards WHERE deck_id=? ORDER BY name').all(w.id);
@@ -214,7 +321,7 @@ app.get('/api/wishlist', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/wishlist', (req, res) => {
+app.post('/api/wishlist', requireAuth, (req, res) => {
   try {
     const w = getOrCreateWishlist();
     const { scryfall_id, name, quantity = 1, image_uri = '', mana_cost = '', type_line = '' } = req.body;
@@ -234,13 +341,39 @@ app.post('/api/wishlist', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/wishlist/:cardId', (req, res) => {
+app.delete('/api/wishlist/:cardId', requireAuth, (req, res) => {
   try {
     db.prepare('DELETE FROM deck_cards WHERE id=?').run(req.params.cardId);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ---- Start ----
+// ================================================================
+// START SERVER
+// Render terminates SSL at their edge — app serves plain HTTP there.
+// Locally we use self-signed HTTPS.
+// ================================================================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Vault server → http://localhost:${PORT}`));
+const IS_RENDER = !!process.env.RENDER;
+
+(async () => {
+  if (IS_RENDER) {
+    app.listen(PORT, () => console.log(`Vault server → http://0.0.0.0:${PORT}`));
+  } else {
+    if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+      const attrs = [{ name: 'commonName', value: 'localhost' }];
+      const pems  = await selfsigned.generate(attrs, { days: 365 });
+      fs.writeFileSync(certPath, pems.cert);
+      fs.writeFileSync(keyPath,  pems.private);
+      console.log('Self-signed SSL certificate generated.');
+    }
+    const sslOptions = {
+      cert: fs.readFileSync(certPath),
+      key:  fs.readFileSync(keyPath),
+    };
+    https.createServer(sslOptions, app).listen(PORT, () => {
+      console.log(`Vault server → https://localhost:${PORT}`);
+      console.log('NOTE: Accept the self-signed certificate warning in your browser.');
+    });
+  }
+})();
