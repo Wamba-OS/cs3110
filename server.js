@@ -12,7 +12,8 @@ const selfsigned = require('selfsigned');
 const app = express();
 const db  = new Database(path.join(__dirname, 'vault.db'));
 
-const JWT_SECRET = process.env.JWT_SECRET || 'vault-dev-secret-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable must be set');
 
 // ---- SSL cert paths ----
 const certPath = path.join(__dirname, 'cert.pem');
@@ -97,6 +98,14 @@ db.exec(`
 // MIDDLEWARE
 // ================================================================
 app.use(express.json());
+
+// Block direct access to sensitive server-side files
+const BLOCKED = /\.(db|db-shm|db-wal|env|pem|key|log)$|(^|\/)server\.js$|(^|\/)package(-lock)?\.json$/i;
+app.use((req, res, next) => {
+  if (BLOCKED.test(req.path)) return res.status(403).end();
+  next();
+});
+
 app.use(express.static(path.join(__dirname)));
 
 function requireAuth(req, res, next) {
@@ -160,7 +169,7 @@ app.post('/api/auth/register', requireAdmin, (req, res) => {
     if (e.message.includes('UNIQUE')) {
       return res.status(409).json({ error: 'Username already exists' });
     }
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -170,7 +179,7 @@ app.post('/api/auth/register', requireAdmin, (req, res) => {
 // GET is unauthenticated (public read)
 app.get('/api/collection', (_req, res) => {
   try { res.json(db.prepare('SELECT * FROM collection ORDER BY name').all()); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/collection', requireAuth, (req, res) => {
@@ -197,7 +206,7 @@ app.post('/api/collection', requireAuth, (req, res) => {
       `).run(scryfall_id, name, set_code, set_name, rarity, mana_cost, type_line, image_uri, quantity, foilInt, condition);
       res.status(201).json({ id: r.lastInsertRowid, scryfall_id, name, quantity, foil: foilInt, condition });
     }
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.put('/api/collection/:id', requireAuth, (req, res) => {
@@ -206,14 +215,14 @@ app.put('/api/collection/:id', requireAuth, (req, res) => {
     db.prepare('UPDATE collection SET quantity=?,condition=?,foil=? WHERE id=?')
       .run(quantity, condition, foil ? 1 : 0, req.params.id);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.delete('/api/collection/:id', requireAuth, (req, res) => {
   try {
     db.prepare('DELETE FROM collection WHERE id=?').run(req.params.id);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // ================================================================
@@ -227,7 +236,7 @@ app.get('/api/decks', (_req, res) => {
       WHERE d.is_wishlist=0
       GROUP BY d.id ORDER BY d.created_at DESC
     `).all());
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/decks', requireAuth, (req, res) => {
@@ -235,7 +244,7 @@ app.post('/api/decks', requireAuth, (req, res) => {
     const { name, description = '', format = 'Casual' } = req.body;
     const r = db.prepare('INSERT INTO decks (name,description,format) VALUES (?,?,?)').run(name, description, format);
     res.status(201).json({ id: r.lastInsertRowid, name, description, format, is_wishlist: 0, card_count: 0 });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.get('/api/decks/:id', (req, res) => {
@@ -244,7 +253,7 @@ app.get('/api/decks/:id', (req, res) => {
     if (!deck) return res.status(404).json({ error: 'Deck not found' });
     const cards = db.prepare('SELECT * FROM deck_cards WHERE deck_id=? ORDER BY name').all(req.params.id);
     res.json({ ...deck, cards });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.put('/api/decks/:id', requireAuth, (req, res) => {
@@ -252,14 +261,14 @@ app.put('/api/decks/:id', requireAuth, (req, res) => {
     const { name, description, format } = req.body;
     db.prepare('UPDATE decks SET name=?,description=?,format=? WHERE id=?').run(name, description, format, req.params.id);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.delete('/api/decks/:id', requireAuth, (req, res) => {
   try {
     db.prepare('DELETE FROM decks WHERE id=?').run(req.params.id);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/decks/:id/cards', requireAuth, (req, res) => {
@@ -282,7 +291,7 @@ app.post('/api/decks/:id/cards', requireAuth, (req, res) => {
       `).run(req.params.id, scryfall_id, name, quantity, board, image_uri, mana_cost, type_line);
       res.status(201).json({ id: r.lastInsertRowid, deck_id: +req.params.id, scryfall_id, name, quantity, board });
     }
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.put('/api/decks/:deckId/cards/:cardId', requireAuth, (req, res) => {
@@ -294,14 +303,14 @@ app.put('/api/decks/:deckId/cards/:cardId', requireAuth, (req, res) => {
       db.prepare('UPDATE deck_cards SET quantity=? WHERE id=?').run(quantity, req.params.cardId);
     }
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.delete('/api/decks/:deckId/cards/:cardId', requireAuth, (req, res) => {
   try {
     db.prepare('DELETE FROM deck_cards WHERE id=?').run(req.params.cardId);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // ================================================================
@@ -323,7 +332,7 @@ app.get('/api/wishlist', (_req, res) => {
     const w = getOrCreateWishlist();
     const cards = db.prepare('SELECT * FROM deck_cards WHERE deck_id=? ORDER BY name').all(w.id);
     res.json({ ...w, cards });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/wishlist', requireAuth, (req, res) => {
@@ -343,14 +352,14 @@ app.post('/api/wishlist', requireAuth, (req, res) => {
       `).run(w.id, scryfall_id, name, quantity, image_uri, mana_cost, type_line);
       res.json({ added: true, wishlistId: w.id });
     }
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.delete('/api/wishlist/:cardId', requireAuth, (req, res) => {
   try {
     db.prepare('DELETE FROM deck_cards WHERE id=?').run(req.params.cardId);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // ================================================================
