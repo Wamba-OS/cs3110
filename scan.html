@@ -30,10 +30,28 @@
       <div class="scan-viewport">
         <video id="scan-video"          autoplay playsinline muted></video>
         <canvas id="scan-preview-canvas"></canvas>
-        <!-- Guide overlay — shown while camera is live -->
+        <!-- Single-card guide -->
         <div class="scan-guide" id="scan-guide">
-          <div class="scan-guide-rect"></div>
+          <div class="scan-guide-rect"  id="scan-guide-rect"></div>
+          <div class="scan-guide-grid hidden" id="scan-guide-grid"></div>
         </div>
+      </div>
+
+      <!-- Mode toggle -->
+      <div class="scan-mode-toggle">
+        <button class="scan-mode-btn active" id="btn-mode-single">&#9641; Single</button>
+        <button class="scan-mode-btn"        id="btn-mode-grid">&#9638; Grid</button>
+      </div>
+
+      <!-- Grid size options (hidden in single mode) -->
+      <div class="scan-grid-options hidden" id="scan-grid-options">
+        <span class="filter-label">Grid Size</span>
+        <select id="grid-size-select" class="d2-select">
+          <option value="2x2">2&#215;2 (4 cards)</option>
+          <option value="3x3" selected>3&#215;3 (9 cards)</option>
+          <option value="3x4">3&#215;4 (12 cards)</option>
+          <option value="4x4">4&#215;4 (16 cards)</option>
+        </select>
       </div>
 
       <!-- Controls -->
@@ -48,14 +66,13 @@
       <!-- OCR progress -->
       <div id="scan-progress" class="scan-progress"></div>
 
-
-      <!-- Results -->
+      <!-- Single-card results -->
       <div id="scan-results-section" style="display:none">
         <div class="scan-section-title">Best Matches — Click to Confirm</div>
         <div id="scan-results-grid" class="scan-results-grid"></div>
       </div>
 
-      <!-- Add-to-collection form (shown after confirming a card) -->
+      <!-- Add-to-collection form (single mode) -->
       <div id="scan-add-form" class="scan-add-form hidden">
         <div id="scan-selected-name" class="scan-selected-name"></div>
         <div class="modal-action-row" style="margin-top:6px">
@@ -69,8 +86,27 @@
             <span>Foil</span>
           </label>
         </div>
-        <button id="scan-add-btn" class="d2-button">+ Add to My Vault</button>
+        <button id="scan-add-btn"   class="d2-button">+ Add to My Vault</button>
         <button id="scan-again-btn" class="d2-button d2-button-arcane">&#8634; Scan Another</button>
+      </div>
+
+      <!-- Grid-mode results -->
+      <div id="scan-grid-section" style="display:none">
+        <div class="scan-section-title">Grid Results — Select Cards to Add</div>
+        <div id="scan-grid-list" class="scan-grid-list"></div>
+        <div class="scan-grid-bulk hidden" id="scan-grid-bulk">
+          <div class="scan-grid-bulk-opts">
+            <span class="filter-label">Condition (all):</span>
+            <select id="bulk-condition" class="d2-select" style="width:80px">
+              <option>NM</option><option>LP</option><option>MP</option><option>HP</option><option>DMG</option>
+            </select>
+            <label class="foil-toggle">
+              <input type="checkbox" id="bulk-foil" /><span>Foil</span>
+            </label>
+          </div>
+          <button id="btn-add-grid-selected" class="d2-button">+ Add Selected to Vault</button>
+          <button id="btn-grid-again"        class="d2-button d2-button-arcane">&#8634; Scan Again</button>
+        </div>
       </div>
 
     </div><!-- /.scan-layout -->
