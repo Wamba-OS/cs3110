@@ -1183,6 +1183,54 @@ body {
   margin-top: 4px;
 }
 .deck-total-row span { color: var(--text-gold); font-weight: 600; }
+.wishlist-total-cost { color: var(--text-gold); font-weight: 600; margin-left: 6px; }
+
+/* Buy links — card modal */
+.modal-buy-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 2px;
+}
+.buy-links-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.buy-link {
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-gold);
+  border: 1px solid var(--gold-dim);
+  background: var(--panel);
+  padding: 2px 7px;
+  border-radius: 2px;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.buy-link:hover { border-color: var(--gold-mid); color: var(--gold-bright); background: var(--panel-raised); }
+
+/* Buy links — wishlist rows (compact) */
+.buy-link-sm {
+  font-size: 0.58rem;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+/* Price cell in wishlist rows */
+.card-price {
+  font-family: 'Cinzel', serif;
+  font-size: 0.68rem;
+  color: var(--text-gold);
+  min-width: 44px;
+  text-align: right;
+  flex-shrink: 0;
+}
 
 /* ================================================================
    SCAN PAGE  (scan.html)

@@ -91,9 +91,11 @@ function renderDeckDetail(deck, isWishlist) {
 
     <div class="deck-total-row">
       Total: <span>${totalCards}</span> cards
+      ${isWishlist ? '<span id="wishlist-total-cost" class="wishlist-total-cost"></span>' : ''}
     </div>`;
 
   renderCardGroups(deck.cards ?? [], deck.id, isWishlist);
+  if (isWishlist && deck.cards?.length) loadWishlistPrices(deck.cards);
   wireDeckDetailEvents(deck, isWishlist);
 }
 
@@ -140,10 +142,15 @@ function renderCardGroups(cards, deckId, isWishlist) {
       const row = document.createElement('div');
       row.className = 'deck-card-row';
       row.dataset.id = c.id;
+      const tcgUrl = `https://www.tcgplayer.com/search/magic/product?productLineName=magic&q=${encodeURIComponent(c.name)}`;
+      const ckUrl  = `https://www.cardkingdom.com/catalog/search?search=header&filter%5Bname%5D=${encodeURIComponent(c.name)}`;
       row.innerHTML = `
         <span class="deck-card-qty">${c.quantity}&#215;</span>
         <div class="deck-card-mana">${renderMana(c.mana_cost)}</div>
         <span class="deck-card-name">${escapeHtml(c.name)}</span>
+        ${isWishlist ? `<span class="card-price" data-cid="${c.id}">&#8230;</span>` : ''}
+        ${isWishlist ? `<a href="${tcgUrl}" target="_blank" rel="noopener noreferrer" class="buy-link buy-link-sm">TCG</a>` : ''}
+        ${isWishlist ? `<a href="${ckUrl}" target="_blank" rel="noopener noreferrer" class="buy-link buy-link-sm">CK</a>` : ''}
         <button class="qty-btn"        data-action="dec" data-id="${c.id}" title="Remove one">&#8722;</button>
         <button class="qty-btn"        data-action="inc" data-id="${c.id}" title="Add one">+</button>
         <button class="qty-btn remove-btn" data-action="del" data-id="${c.id}" title="Remove all">&#10006;</button>`;
@@ -262,6 +269,36 @@ function renderSearchDropdown(cards, deckId, isWishlist, inputEl, resultsEl) {
     resultsEl.appendChild(row);
   }
   resultsEl.classList.add('visible');
+}
+
+// ---- Wishlist market prices ----
+async function loadWishlistPrices(cards) {
+  try {
+    const identifiers = cards.map(c => ({ id: c.scryfall_id }));
+    const res = await fetch('https://api.scryfall.com/cards/collection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifiers }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const priceMap = {};
+    for (const card of (data.data ?? [])) {
+      priceMap[card.id] = card.prices?.usd ?? card.prices?.usd_foil ?? null;
+    }
+
+    let total = 0;
+    for (const c of cards) {
+      const price = priceMap[c.scryfall_id];
+      const el = document.querySelector(`.card-price[data-cid="${c.id}"]`);
+      if (el) el.textContent = price ? `$${parseFloat(price).toFixed(2)}` : '—';
+      if (price) total += parseFloat(price) * c.quantity;
+    }
+
+    const totalEl = document.getElementById('wishlist-total-cost');
+    if (totalEl) totalEl.textContent = `· Est. $${total.toFixed(2)}`;
+  } catch { /* prices unavailable */ }
 }
 
 // ---- New deck form ----

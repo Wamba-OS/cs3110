@@ -40,6 +40,7 @@ const btnAddCollection = document.getElementById('btn-add-collection');
 const btnAddWishlist   = document.getElementById('btn-add-wishlist');
 const btnAddDeck       = document.getElementById('btn-add-deck');
 const modalDeckSelect  = document.getElementById('modal-deck-select');
+const modalBuyLinks    = document.getElementById('modal-buy-links');
 
 // ---- DOM refs (mobile drawer) ----
 const filterPanel      = document.querySelector('.filter-panel');
@@ -202,6 +203,15 @@ function openModal(card) {
   else         { modalPt.style.display = 'none'; }
 
   modalMeta.textContent = `${card.set_name ?? ''} · ${(card.released_at ?? '').slice(0,4)}${card.artist ? ' · Art: ' + card.artist : ''}`;
+
+  const pu = card.purchase_uris ?? {};
+  const buyParts = [];
+  if (pu.tcgplayer) buyParts.push(`<a href="${pu.tcgplayer}" target="_blank" rel="noopener noreferrer" class="buy-link">TCGPlayer</a>`);
+  const ckUrl = `https://www.cardkingdom.com/catalog/search?search=header&filter%5Bname%5D=${encodeURIComponent(card.name)}`;
+  buyParts.push(`<a href="${ckUrl}" target="_blank" rel="noopener noreferrer" class="buy-link">Card Kingdom</a>`);
+  if (pu.cardmarket) buyParts.push(`<a href="${pu.cardmarket}" target="_blank" rel="noopener noreferrer" class="buy-link">Cardmarket</a>`);
+  modalBuyLinks.innerHTML = buyParts.length ? `<span class="buy-links-label">Buy:</span>${buyParts.join('')}` : '';
+
   modalQty.value        = 1;
   modalCondition.value  = 'NM';
   modalFoil.checked     = false;
