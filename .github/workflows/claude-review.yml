@@ -14,6 +14,7 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  actions: read  # Required to download artifacts from other workflows
 
 jobs:
   claude-security-review:
@@ -66,15 +67,15 @@ jobs:
           fetch-depth: 0
 
       - name: Download security scan artifacts
-        uses: dawidd6/action-download-artifact@v3
+        id: download-artifacts
         continue-on-error: true
+        uses: dawidd6/action-download-artifact@v3
         with:
           workflow: security-scan.yml
-          pr: ${{ steps.pr.outputs.number }}
           name: security-scan-results
           path: .security-artifacts/
-          check_artifacts: true
-          search_artifacts: true
+          workflow_conclusion: success
+          if_no_artifact_found: warn
 
       - name: Check if artifacts exist
         id: check-artifacts
