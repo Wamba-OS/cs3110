@@ -1,7 +1,5 @@
 name: Claude Security Review
 
-# Phase 4.4: Initially triggered by @claude mention
-# Phase 4.6: Will switch to auto-trigger on PR open/sync
 on:
   issue_comment:
     types: [created]
@@ -14,7 +12,6 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
-  actions: read  # Required to download artifacts from other workflows
 
 jobs:
   claude-security-review:
@@ -36,7 +33,6 @@ jobs:
           script: |
             let pr_number;
             if (context.eventName === 'workflow_dispatch') {
-              // For manual testing, use the most recent PR
               const prs = await github.rest.pulls.list({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -72,127 +68,103 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install anthropic requests
+
       - name: Create security artifacts directory
         run: mkdir -p .security-artifacts
 
+      # ==========================================
+      # Run Security Scans
+      # ==========================================
       - name: Run npm audit
-        id: npm-audit
         continue-on-error: true
         run: |
           npm install --package-lock-only
           npm audit --json > .security-artifacts/npm-audit.json || true
 
       - name: Run Semgrep
-        id: semgrep
         continue-on-error: true
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: >-
-            p/javascript
-            p/nodejs
-            p/express
-            p/security-audit
-          generateSarif: true
-
-      - name: Save Semgrep results
-        if: always()
         run: |
-          if [ -f semgrep.sarif ]; then
-            mv semgrep.sarif .security-artifacts/semgrep.sarif
-          fi
-          if [ -f .security-artifacts/semgrep.sarif ]; then
-            echo '{"status":"completed"}' > .security-artifacts/semgrep-summary.json
-          else
-            echo '{"status":"no_results"}' > .security-artifacts/semgrep-summary.json
-          fi
+          pip install semgrep
+          semgrep scan \
+            --config=p/javascript \
+            --config=p/nodejs \
+            --config=p/express \
+            --config=p/security-audit \
+            --sarif \
+            --output=.security-artifacts/semgrep.sarif \
+            . || true
 
       - name: Run Gitleaks
-        id: gitleaks
         continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Save Gitleaks results
+      - name: Move Gitleaks results
         if: always()
         run: |
           if [ -f results.sarif ]; then
             mv results.sarif .security-artifacts/gitleaks.sarif
           fi
-          if [ -f .security-artifacts/gitleaks.sarif ]; then
-            echo '{"status":"completed"}' > .security-artifacts/gitleaks-summary.json
-          else
-            echo '{"status":"no_results"}' > .security-artifacts/gitleaks-summary.json
-          fi
 
-      - name: Check if artifacts exist
-        id: check-artifacts
+      - name: Verify artifacts
         run: |
-          if [ -f .security-artifacts/npm-audit.json ]; then
-            echo "has_artifacts=true" >> $GITHUB_OUTPUT
-            ls -la .security-artifacts/
+          echo "Security artifacts created:"
+          ls -lh .security-artifacts/
+
+      # ==========================================
+      # Run Security Review
+      # ==========================================
+      - name: Run Claude security review
+        id: security-review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          chmod +x .github/scripts/security_review.py
+          python3 .github/scripts/security_review.py || echo "Review completed with findings"
+
+      - name: Read verdict
+        id: verdict
+        run: |
+          if [ -f verdict.json ]; then
+            verdict=$(jq -r '.verdict' verdict.json)
+            risk_score=$(jq -r '.risk_score' verdict.json)
+            summary=$(jq -r '.summary' verdict.json)
+            findings_count=$(jq '.findings | length' verdict.json)
+
+            echo "verdict=$verdict" >> $GITHUB_OUTPUT
+            echo "risk_score=$risk_score" >> $GITHUB_OUTPUT
+            echo "summary=$summary" >> $GITHUB_OUTPUT
+            echo "findings_count=$findings_count" >> $GITHUB_OUTPUT
+
+            echo "Verdict: $verdict"
+            echo "Risk Score: $risk_score"
+            echo "Findings: $findings_count"
           else
-            echo "has_artifacts=false" >> $GITHUB_OUTPUT
-            echo "⚠️ No security artifacts generated"
+            echo "verdict=ERROR" >> $GITHUB_OUTPUT
+            echo "ERROR: verdict.json not found"
+            exit 1
           fi
 
-      - name: Run Claude Code security-reviewer agent
-        if: steps.check-artifacts.outputs.has_artifacts == 'true'
-        uses: anthropics/claude-code-action@v1
-        id: claude-review
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          agent: security-reviewer
-          prompt: |
-            Review PR #${{ steps.pr.outputs.number }} for security issues.
-
-            Security artifacts are available in `.security-artifacts/`:
-            - npm-audit.json
-            - semgrep.sarif
-            - gitleaks.sarif
-            - SUMMARY.md
-
-            PR diff: Run `gh pr diff ${{ steps.pr.outputs.number }}`
-
-            Return the structured JSON verdict as specified in your instructions.
-          max_turns: 3
-          timeout_seconds: 300
-
-      - name: Parse Claude's verdict
-        if: steps.check-artifacts.outputs.has_artifacts == 'true'
-        id: verdict
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const output = `${{ steps.claude-review.outputs.response }}`;
-
-            // Extract JSON from Claude's response (may be wrapped in markdown code fence)
-            let json_match = output.match(/```json\n([\s\S]*?)\n```/);
-            if (!json_match) {
-              json_match = output.match(/\{[\s\S]*\}/);
-            }
-
-            if (!json_match) {
-              core.setFailed('Could not parse JSON verdict from Claude response');
-              return;
-            }
-
-            const verdict = JSON.parse(json_match[1] || json_match[0]);
-            core.setOutput('verdict', verdict.verdict);
-            core.setOutput('risk_score', verdict.risk_score);
-            core.setOutput('summary', verdict.summary);
-            core.setOutput('full_json', JSON.stringify(verdict, null, 2));
-
-            console.log('Verdict:', verdict.verdict);
-            console.log('Risk Score:', verdict.risk_score);
-            console.log('Summary:', verdict.summary);
-
+      # ==========================================
+      # Post Results to PR
+      # ==========================================
       - name: Post security review comment
-        if: steps.check-artifacts.outputs.has_artifacts == 'true'
         uses: actions/github-script@v7
         with:
           script: |
-            const verdict = JSON.parse(`${{ steps.verdict.outputs.full_json }}`);
+            const fs = require('fs');
+            const verdict = JSON.parse(fs.readFileSync('verdict.json', 'utf8'));
 
             // Build comment body
             let comment = '## 🔒 Claude Security Review\n\n';
@@ -232,7 +204,7 @@ jobs:
             }
 
             comment += '---\n';
-            comment += '*🤖 Generated by [Claude Code](https://claude.com/claude-code) security-reviewer agent*\n';
+            comment += '*🤖 Generated by Claude Code security-reviewer agent*\n';
 
             // Post comment
             await github.rest.issues.createComment({
@@ -243,7 +215,6 @@ jobs:
             });
 
       - name: Add security label
-        if: steps.check-artifacts.outputs.has_artifacts == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -263,16 +234,38 @@ jobs:
               // Label might not exist, that's fine
             }
 
-            // Add new label
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: ${{ steps.pr.outputs.number }},
-              labels: [label]
-            });
+            // Add new label (create if it doesn't exist)
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ steps.pr.outputs.number }},
+                labels: [label]
+              });
+            } catch (e) {
+              // Try to create the label first
+              const color = label === 'security:pass' ? '0E8A16' : 'D73A4A';
+              const description = label === 'security:pass' ? 'Security review passed' : 'Security review failed';
+
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: label,
+                color: color,
+                description: description
+              });
+
+              // Now add it
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ steps.pr.outputs.number }},
+                labels: [label]
+              });
+            }
 
       - name: Fail workflow if security verdict is FAIL
-        if: steps.check-artifacts.outputs.has_artifacts == 'true' && steps.verdict.outputs.verdict == 'FAIL'
+        if: steps.verdict.outputs.verdict == 'FAIL'
         run: |
           echo "❌ Security review FAILED with risk score ${{ steps.verdict.outputs.risk_score }}"
           echo "See PR comment for details"
