@@ -1,0 +1,245 @@
+name: Claude Security Review
+
+# Phase 4.4: Initially triggered by @claude mention
+# Phase 4.6: Will switch to auto-trigger on PR open/sync
+on:
+  issue_comment:
+    types: [created]
+  # Uncomment after Phase 4.5 testing is complete:
+  # pull_request:
+  #   types: [opened, synchronize]
+  workflow_dispatch:  # Manual trigger for testing
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  claude-security-review:
+    name: Security Review by Claude
+    # Only run on PR comments that mention @claude
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Get PR number
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let pr_number;
+            if (context.eventName === 'workflow_dispatch') {
+              // For manual testing, use the most recent PR
+              const prs = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                sort: 'updated',
+                direction: 'desc',
+                per_page: 1
+              });
+              pr_number = prs.data[0]?.number;
+            } else if (context.eventName === 'issue_comment') {
+              pr_number = context.issue.number;
+            } else if (context.eventName === 'pull_request') {
+              pr_number = context.issue.number;
+            }
+
+            if (!pr_number) {
+              core.setFailed('Could not determine PR number');
+              return;
+            }
+
+            core.setOutput('number', pr_number);
+            console.log(`PR number: ${pr_number}`);
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ steps.pr.outputs.number }}/head
+          fetch-depth: 0
+
+      - name: Download security scan artifacts
+        uses: dawidd6/action-download-artifact@v3
+        continue-on-error: true
+        with:
+          workflow: security-scan.yml
+          pr: ${{ steps.pr.outputs.number }}
+          name: security-scan-results
+          path: .security-artifacts/
+          check_artifacts: true
+          search_artifacts: true
+
+      - name: Check if artifacts exist
+        id: check-artifacts
+        run: |
+          if [ ! -f .security-artifacts/npm-audit.json ]; then
+            echo "⚠️ Security artifacts not found. Running security scan first..."
+            echo "has_artifacts=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Security artifacts found"
+            echo "has_artifacts=true" >> $GITHUB_OUTPUT
+            ls -la .security-artifacts/
+          fi
+
+      - name: Trigger security scan if needed
+        if: steps.check-artifacts.outputs.has_artifacts == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'security-scan.yml',
+              ref: context.ref
+            });
+
+            core.setFailed('Security scan artifacts not found. Triggered security-scan workflow. Please wait for it to complete and re-run this workflow.');
+
+      - name: Run Claude Code security-reviewer agent
+        if: steps.check-artifacts.outputs.has_artifacts == 'true'
+        uses: anthropics/claude-code-action@v1
+        id: claude-review
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          agent: security-reviewer
+          prompt: |
+            Review PR #${{ steps.pr.outputs.number }} for security issues.
+
+            Security artifacts are available in `.security-artifacts/`:
+            - npm-audit.json
+            - semgrep.sarif
+            - gitleaks.sarif
+            - SUMMARY.md
+
+            PR diff: Run `gh pr diff ${{ steps.pr.outputs.number }}`
+
+            Return the structured JSON verdict as specified in your instructions.
+          max_turns: 3
+          timeout_seconds: 300
+
+      - name: Parse Claude's verdict
+        if: steps.check-artifacts.outputs.has_artifacts == 'true'
+        id: verdict
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `${{ steps.claude-review.outputs.response }}`;
+
+            // Extract JSON from Claude's response (may be wrapped in markdown code fence)
+            let json_match = output.match(/```json\n([\s\S]*?)\n```/);
+            if (!json_match) {
+              json_match = output.match(/\{[\s\S]*\}/);
+            }
+
+            if (!json_match) {
+              core.setFailed('Could not parse JSON verdict from Claude response');
+              return;
+            }
+
+            const verdict = JSON.parse(json_match[1] || json_match[0]);
+            core.setOutput('verdict', verdict.verdict);
+            core.setOutput('risk_score', verdict.risk_score);
+            core.setOutput('summary', verdict.summary);
+            core.setOutput('full_json', JSON.stringify(verdict, null, 2));
+
+            console.log('Verdict:', verdict.verdict);
+            console.log('Risk Score:', verdict.risk_score);
+            console.log('Summary:', verdict.summary);
+
+      - name: Post security review comment
+        if: steps.check-artifacts.outputs.has_artifacts == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const verdict = JSON.parse(`${{ steps.verdict.outputs.full_json }}`);
+
+            // Build comment body
+            let comment = '## 🔒 Claude Security Review\n\n';
+            comment += `**Verdict:** ${verdict.verdict === 'PASS' ? '✅ PASS' : '❌ FAIL'}\n`;
+            comment += `**Risk Score:** ${verdict.risk_score}/100\n`;
+            comment += `**Summary:** ${verdict.summary}\n\n`;
+
+            if (verdict.findings && verdict.findings.length > 0) {
+              comment += '### Findings\n\n';
+              for (const finding of verdict.findings) {
+                const emoji = {
+                  'Critical': '🔴',
+                  'High': '🟠',
+                  'Medium': '🟡',
+                  'Low': '🔵',
+                  'Info': 'ℹ️'
+                }[finding.severity] || '';
+
+                comment += `#### ${emoji} ${finding.severity}: ${finding.title}\n`;
+                comment += `- **File:** \`${finding.file}\`${finding.line ? `:${finding.line}` : ''}\n`;
+                if (finding.cwe) comment += `- **CWE:** ${finding.cwe}\n`;
+                comment += `- **Source:** ${finding.source}\n`;
+                comment += `- **Explanation:** ${finding.explanation}\n`;
+                if (finding.suggested_fix) {
+                  comment += `- **Suggested Fix:** ${finding.suggested_fix}\n`;
+                }
+                comment += '\n';
+              }
+            }
+
+            if (verdict.next_steps_for_implementer && verdict.next_steps_for_implementer.length > 0) {
+              comment += '### Next Steps\n\n';
+              for (let i = 0; i < verdict.next_steps_for_implementer.length; i++) {
+                comment += `${i + 1}. ${verdict.next_steps_for_implementer[i]}\n`;
+              }
+              comment += '\n';
+            }
+
+            comment += '---\n';
+            comment += '*🤖 Generated by [Claude Code](https://claude.com/claude-code) security-reviewer agent*\n';
+
+            // Post comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.pr.outputs.number }},
+              body: comment
+            });
+
+      - name: Add security label
+        if: steps.check-artifacts.outputs.has_artifacts == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const verdict = '${{ steps.verdict.outputs.verdict }}';
+            const label = verdict === 'PASS' ? 'security:pass' : 'security:fail';
+
+            // Remove opposite label if exists
+            const oppositeLabel = verdict === 'PASS' ? 'security:fail' : 'security:pass';
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ steps.pr.outputs.number }},
+                name: oppositeLabel
+              });
+            } catch (e) {
+              // Label might not exist, that's fine
+            }
+
+            // Add new label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.pr.outputs.number }},
+              labels: [label]
+            });
+
+      - name: Fail workflow if security verdict is FAIL
+        if: steps.check-artifacts.outputs.has_artifacts == 'true' && steps.verdict.outputs.verdict == 'FAIL'
+        run: |
+          echo "❌ Security review FAILED with risk score ${{ steps.verdict.outputs.risk_score }}"
+          echo "See PR comment for details"
+          exit 1

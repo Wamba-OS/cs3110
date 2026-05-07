@@ -414,26 +414,32 @@ app.delete('/api/wishlist/:cardId', requireAuth, async (req, res) => {
 const PORT = process.env.PORT || 3000;
 const IS_RENDER = !!process.env.RENDER;
 
-(async () => {
-  await initDB();
+// Export app and initDB for testing
+module.exports = { app, initDB };
 
-  if (IS_RENDER) {
-    app.listen(PORT, () => console.log(`Vault server → http://0.0.0.0:${PORT}`));
-  } else {
-    if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
-      const attrs = [{ name: 'commonName', value: 'localhost' }];
-      const pems  = await selfsigned.generate(attrs, { days: 365 });
-      fs.writeFileSync(certPath, pems.cert);
-      fs.writeFileSync(keyPath,  pems.private);
-      console.log('Self-signed SSL certificate generated.');
+// Only start server if this file is run directly (not imported by tests)
+if (require.main === module) {
+  (async () => {
+    await initDB();
+
+    if (IS_RENDER) {
+      app.listen(PORT, () => console.log(`Vault server → http://0.0.0.0:${PORT}`));
+    } else {
+      if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+        const attrs = [{ name: 'commonName', value: 'localhost' }];
+        const pems  = await selfsigned.generate(attrs, { days: 365 });
+        fs.writeFileSync(certPath, pems.cert);
+        fs.writeFileSync(keyPath,  pems.private);
+        console.log('Self-signed SSL certificate generated.');
+      }
+      const sslOptions = {
+        cert: fs.readFileSync(certPath),
+        key:  fs.readFileSync(keyPath),
+      };
+      https.createServer(sslOptions, app).listen(PORT, () => {
+        console.log(`Vault server → https://localhost:${PORT}`);
+        console.log('NOTE: Accept the self-signed certificate warning in your browser.');
+      });
     }
-    const sslOptions = {
-      cert: fs.readFileSync(certPath),
-      key:  fs.readFileSync(keyPath),
-    };
-    https.createServer(sslOptions, app).listen(PORT, () => {
-      console.log(`Vault server → https://localhost:${PORT}`);
-      console.log('NOTE: Accept the self-signed certificate warning in your browser.');
-    });
-  }
-})();
+  })();
+}

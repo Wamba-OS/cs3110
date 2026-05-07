@@ -2,3 +2,9 @@ node_modules/
 cert.pem
 key.pem
 .env
+
+# Security scan artifacts (generated locally and in CI)
+.security-artifacts/
+
+# Test coverage
+coverage/

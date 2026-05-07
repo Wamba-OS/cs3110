@@ -1,0 +1,11 @@
+# Gitleaks ignore file - specify false positives here
+# Format: <file-path>:<fingerprint> or <file-path>
+
+# Example files should not trigger secret detection
+.env.example
+
+# Test files with mock credentials
+tests/setup.js
+
+# SARIF files contain security findings that may look like secrets
+.security-artifacts/

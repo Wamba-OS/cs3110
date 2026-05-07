@@ -1,0 +1,169 @@
+name: Security Scan (SAST)
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: read
+  pull-requests: write  # For posting comments
+
+jobs:
+  security-scan:
+    name: Run SAST Tools
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for gitleaks
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Create security artifacts directory
+        run: mkdir -p .security-artifacts
+
+      # ==========================================
+      # npm audit
+      # ==========================================
+      - name: Run npm audit
+        id: npm-audit
+        continue-on-error: true
+        run: |
+          npm install --package-lock-only
+          npm audit --json > .security-artifacts/npm-audit.json || true
+          echo "exitCode=$?" >> $GITHUB_OUTPUT
+
+      - name: Generate npm audit summary
+        run: |
+          if [ -f .security-artifacts/npm-audit.json ]; then
+            echo "### npm audit results" >> .security-artifacts/npm-audit-summary.txt
+            jq -r '.metadata.vulnerabilities | to_entries | map("\(.key): \(.value)") | join(", ")' .security-artifacts/npm-audit.json >> .security-artifacts/npm-audit-summary.txt || echo "Failed to parse npm audit JSON" >> .security-artifacts/npm-audit-summary.txt
+          fi
+
+      # ==========================================
+      # Semgrep
+      # ==========================================
+      - name: Run Semgrep
+        id: semgrep
+        continue-on-error: true
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/javascript
+            p/nodejs
+            p/express
+            p/security-audit
+          generateSarif: true
+        env:
+          SEMGREP_RULES: p/javascript p/nodejs p/express p/security-audit
+
+      - name: Save Semgrep results
+        if: always()
+        run: |
+          if [ -f semgrep.sarif ]; then
+            mv semgrep.sarif .security-artifacts/semgrep.sarif
+          fi
+          # Create a JSON summary if semgrep ran
+          if [ -f .security-artifacts/semgrep.sarif ]; then
+            echo '{"status":"completed","timestamp":"'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"}' > .security-artifacts/semgrep-summary.json
+          else
+            echo '{"status":"no_results","timestamp":"'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"}' > .security-artifacts/semgrep-summary.json
+          fi
+
+      # ==========================================
+      # Gitleaks
+      # ==========================================
+      - name: Run Gitleaks
+        id: gitleaks
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Save Gitleaks results
+        if: always()
+        run: |
+          if [ -f results.sarif ]; then
+            mv results.sarif .security-artifacts/gitleaks.sarif
+          fi
+          # Create summary
+          if [ -f .security-artifacts/gitleaks.sarif ]; then
+            echo '{"status":"completed","timestamp":"'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"}' > .security-artifacts/gitleaks-summary.json
+          else
+            echo '{"status":"no_results","timestamp":"'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"}' > .security-artifacts/gitleaks-summary.json
+          fi
+
+      # ==========================================
+      # Upload artifacts
+      # ==========================================
+      - name: Upload security artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-results
+          path: .security-artifacts/
+          retention-days: 90
+
+      # ==========================================
+      # Generate summary report
+      # ==========================================
+      - name: Generate security summary
+        if: always()
+        run: |
+          echo "# Security Scan Summary" > .security-artifacts/SUMMARY.md
+          echo "" >> .security-artifacts/SUMMARY.md
+          echo "**Scan Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> .security-artifacts/SUMMARY.md
+          echo "**Commit:** ${{ github.sha }}" >> .security-artifacts/SUMMARY.md
+          echo "" >> .security-artifacts/SUMMARY.md
+
+          echo "## npm audit" >> .security-artifacts/SUMMARY.md
+          if [ -f .security-artifacts/npm-audit-summary.txt ]; then
+            cat .security-artifacts/npm-audit-summary.txt >> .security-artifacts/SUMMARY.md
+          else
+            echo "No results available" >> .security-artifacts/SUMMARY.md
+          fi
+          echo "" >> .security-artifacts/SUMMARY.md
+
+          echo "## Semgrep" >> .security-artifacts/SUMMARY.md
+          if [ -f .security-artifacts/semgrep.sarif ]; then
+            SEMGREP_COUNT=$(jq '.runs[0].results | length' .security-artifacts/semgrep.sarif 2>/dev/null || echo "0")
+            echo "Found $SEMGREP_COUNT findings" >> .security-artifacts/SUMMARY.md
+          else
+            echo "No results available" >> .security-artifacts/SUMMARY.md
+          fi
+          echo "" >> .security-artifacts/SUMMARY.md
+
+          echo "## Gitleaks" >> .security-artifacts/SUMMARY.md
+          if [ -f .security-artifacts/gitleaks.sarif ]; then
+            GITLEAKS_COUNT=$(jq '.runs[0].results | length' .security-artifacts/gitleaks.sarif 2>/dev/null || echo "0")
+            echo "Found $GITLEAKS_COUNT potential secrets" >> .security-artifacts/SUMMARY.md
+          else
+            echo "No results available" >> .security-artifacts/SUMMARY.md
+          fi
+
+          cat .security-artifacts/SUMMARY.md
+
+      - name: Post summary to PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('.security-artifacts/SUMMARY.md', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
