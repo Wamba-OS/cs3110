@@ -14,6 +14,7 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  actions: read  # Required to download artifacts from other workflows
 
 jobs:
   claude-security-review:
@@ -65,42 +66,75 @@ jobs:
           ref: refs/pull/${{ steps.pr.outputs.number }}/head
           fetch-depth: 0
 
-      - name: Download security scan artifacts
-        uses: dawidd6/action-download-artifact@v3
-        continue-on-error: true
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
         with:
-          workflow: security-scan.yml
-          pr: ${{ steps.pr.outputs.number }}
-          name: security-scan-results
-          path: .security-artifacts/
-          check_artifacts: true
-          search_artifacts: true
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Create security artifacts directory
+        run: mkdir -p .security-artifacts
+
+      - name: Run npm audit
+        id: npm-audit
+        continue-on-error: true
+        run: |
+          npm install --package-lock-only
+          npm audit --json > .security-artifacts/npm-audit.json || true
+
+      - name: Run Semgrep
+        id: semgrep
+        continue-on-error: true
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/javascript
+            p/nodejs
+            p/express
+            p/security-audit
+          generateSarif: true
+
+      - name: Save Semgrep results
+        if: always()
+        run: |
+          if [ -f semgrep.sarif ]; then
+            mv semgrep.sarif .security-artifacts/semgrep.sarif
+          fi
+          if [ -f .security-artifacts/semgrep.sarif ]; then
+            echo '{"status":"completed"}' > .security-artifacts/semgrep-summary.json
+          else
+            echo '{"status":"no_results"}' > .security-artifacts/semgrep-summary.json
+          fi
+
+      - name: Run Gitleaks
+        id: gitleaks
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save Gitleaks results
+        if: always()
+        run: |
+          if [ -f results.sarif ]; then
+            mv results.sarif .security-artifacts/gitleaks.sarif
+          fi
+          if [ -f .security-artifacts/gitleaks.sarif ]; then
+            echo '{"status":"completed"}' > .security-artifacts/gitleaks-summary.json
+          else
+            echo '{"status":"no_results"}' > .security-artifacts/gitleaks-summary.json
+          fi
 
       - name: Check if artifacts exist
         id: check-artifacts
         run: |
-          if [ ! -f .security-artifacts/npm-audit.json ]; then
-            echo "⚠️ Security artifacts not found. Running security scan first..."
-            echo "has_artifacts=false" >> $GITHUB_OUTPUT
-          else
-            echo "✅ Security artifacts found"
+          if [ -f .security-artifacts/npm-audit.json ]; then
             echo "has_artifacts=true" >> $GITHUB_OUTPUT
             ls -la .security-artifacts/
+          else
+            echo "has_artifacts=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No security artifacts generated"
           fi
-
-      - name: Trigger security scan if needed
-        if: steps.check-artifacts.outputs.has_artifacts == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'security-scan.yml',
-              ref: context.ref
-            });
-
-            core.setFailed('Security scan artifacts not found. Triggered security-scan workflow. Please wait for it to complete and re-run this workflow.');
 
       - name: Run Claude Code security-reviewer agent
         if: steps.check-artifacts.outputs.has_artifacts == 'true'

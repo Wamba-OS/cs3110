@@ -55,24 +55,19 @@ jobs:
       - name: Run Semgrep
         id: semgrep
         continue-on-error: true
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: >-
-            p/javascript
-            p/nodejs
-            p/express
-            p/security-audit
-          generateSarif: true
-        env:
-          SEMGREP_RULES: p/javascript p/nodejs p/express p/security-audit
-
-      - name: Save Semgrep results
-        if: always()
         run: |
-          if [ -f semgrep.sarif ]; then
-            mv semgrep.sarif .security-artifacts/semgrep.sarif
-          fi
-          # Create a JSON summary if semgrep ran
+          # Install semgrep
+          pip install semgrep
+          # Run semgrep with SARIF output
+          semgrep scan \
+            --config=p/javascript \
+            --config=p/nodejs \
+            --config=p/express \
+            --config=p/security-audit \
+            --sarif \
+            --output=.security-artifacts/semgrep.sarif \
+            . || true
+          # Create summary
           if [ -f .security-artifacts/semgrep.sarif ]; then
             echo '{"status":"completed","timestamp":"'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"}' > .security-artifacts/semgrep-summary.json
           else
@@ -104,6 +99,18 @@ jobs:
           fi
 
       # ==========================================
+      # Verify artifacts before upload
+      # ==========================================
+      - name: Verify artifacts
+        if: always()
+        run: |
+          echo "Contents of .security-artifacts/:"
+          ls -la .security-artifacts/ || echo "Directory not found"
+          echo ""
+          echo "File sizes:"
+          du -h .security-artifacts/* || echo "No files found"
+
+      # ==========================================
       # Upload artifacts
       # ==========================================
       - name: Upload security artifacts
@@ -112,6 +119,7 @@ jobs:
         with:
           name: security-scan-results
           path: .security-artifacts/
+          if-no-files-found: warn
           retention-days: 90
 
       # ==========================================
